@@ -17,6 +17,7 @@ import {
 import { Receipt, ClaimCategory, ClaimStatus, CATEGORY_LIMITS, SmartSetupData } from "../types";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import JSZip from "jszip";
 
 interface TaxSummaryViewProps {
   receipts: Receipt[];
@@ -233,6 +234,153 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
   // PDF file downloader helper
   const handleDownloadDraft = () => {
     executeDownload();
+  };
+
+  const handleDownloadAllReceiptImages = async () => {
+    const receiptsWithImages = receipts.filter(r => r.receiptImageDataUrl);
+    if (receiptsWithImages.length === 0) {
+      alert("No receipt images available to download yet.");
+      return;
+    }
+
+    const dataURLtoBlob = (dataUrl: string): Blob | null => {
+      try {
+        const parts = dataUrl.split(",");
+        if (parts.length < 2) return null;
+        const header = parts[0];
+        const base64Data = parts[1];
+        
+        const mimeMatch = header.match(/data:(.*?);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+        
+        const binaryStr = atob(base64Data);
+        const len = binaryStr.length;
+        const u8arr = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          u8arr[i] = binaryStr.charCodeAt(i);
+        }
+        return new Blob([u8arr], { type: mimeType });
+      } catch (err) {
+        console.error("Failed to parse data URL to Blob", err);
+        return null;
+      }
+    };
+
+    const getExtensionFromDataUrl = (dataUrl: string): string => {
+      if (dataUrl.startsWith("data:image/png")) return "png";
+      if (dataUrl.startsWith("data:image/webp")) return "webp";
+      if (dataUrl.startsWith("data:image/gif")) return "gif";
+      if (dataUrl.startsWith("data:image/svg+xml")) return "svg";
+      return "jpg"; // Default
+    };
+
+    let hasInvalidData = false;
+
+    // Single image direct download
+    if (receiptsWithImages.length === 1) {
+      const receipt = receiptsWithImages[0];
+      const dataUrl = receipt.receiptImageDataUrl!;
+      const blob = dataURLtoBlob(dataUrl);
+      if (!blob) {
+        alert("The stored image data was invalid.");
+        return;
+      }
+
+      const ext = getExtensionFromDataUrl(dataUrl);
+      const merchantClean = (receipt.merchant || "receipt")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-_]/g, "")
+        .trim()
+        .replace(/\s+/g, "_");
+        
+      const dateStr = receipt.date || (receipt.createdAt ? new Date(receipt.createdAt).toISOString().split('T')[0] : "2026-06-17");
+      const filename = `${merchantClean}_${dateStr}_receipt.${ext}`;
+
+      const link = document.createElement("a");
+      const blobUrl = URL.createObjectURL(blob);
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      return;
+    }
+
+    // Multiple images ZIP download
+    const zip = new JSZip();
+    const usedFilenames = new Set<string>();
+
+    receiptsWithImages.forEach((receipt) => {
+      const dataUrl = receipt.receiptImageDataUrl!;
+      const blob = dataURLtoBlob(dataUrl);
+      if (!blob) {
+        hasInvalidData = true;
+        return; // Skip invalid
+      }
+
+      const ext = getExtensionFromDataUrl(dataUrl);
+      const merchantClean = (receipt.merchant || "receipt")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-_]/g, "")
+        .trim()
+        .replace(/\s+/g, "_");
+        
+      const dateStr = receipt.date || (receipt.createdAt ? new Date(receipt.createdAt).toISOString().split('T')[0] : "2026-06-17");
+      
+      const baseName = `${merchantClean}_${dateStr}_receipt`;
+      let filename = `${baseName}.${ext}`;
+      let counter = 1;
+
+      while (usedFilenames.has(filename.toLowerCase())) {
+        filename = `${baseName}_${counter}.${ext}`;
+        counter++;
+      }
+
+      usedFilenames.add(filename.toLowerCase());
+      zip.file(filename, blob);
+    });
+
+    try {
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      const zipUrl = URL.createObjectURL(zipBlob);
+      link.href = zipUrl;
+      link.download = "tax5_receipts_YA2026.zip";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(zipUrl), 100);
+
+      if (hasInvalidData) {
+        alert("Some receipt images could not be included because the stored image data was invalid.");
+      }
+    } catch (zipErr) {
+      console.error("Failed to generate ZIP", zipErr);
+      alert("Error generating ZIP download. Resorting to fallback individual downloads.");
+      
+      receiptsWithImages.forEach((receipt, index) => {
+        const dataUrl = receipt.receiptImageDataUrl!;
+        const ext = getExtensionFromDataUrl(dataUrl);
+        const merchantClean = (receipt.merchant || "receipt")
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-_]/g, "")
+          .trim()
+          .replace(/\s+/g, "_");
+          
+        const dateStr = receipt.date || (receipt.createdAt ? new Date(receipt.createdAt).toISOString().split('T')[0] : "2026-06-17");
+        const filename = `${merchantClean}_${dateStr}_receipt.${ext}`;
+
+        setTimeout(() => {
+          const l = document.createElement("a");
+          l.href = dataUrl;
+          l.download = filename;
+          document.body.appendChild(l);
+          l.click();
+          document.body.removeChild(l);
+        }, index * 400);
+      });
+    }
   };
 
   const executeDownload = () => {
@@ -578,31 +726,52 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     const formatRM = (val: number) => `RM${val.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const reliefRows = [
-      ["G1", "G1 Individual Relief (Automatic)", "RM9,000.00", "RM9,000.00", "RM9,000.00", "Automatic personal relief included for Form BE-style estimate."],
-      ["G5", "G5 Education", formatRM(categoryTotals[ClaimCategory.Education] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Education].limit), formatRM(cappedCategoryTotals[ClaimCategory.Education] || 0), "Self study courses and degrees study."],
+      ["G1", "Individual Relief (Automatic)", "RM9,000.00", "RM9,000.00", "RM9,000.00", "Automatic personal relief included for Form BE-style estimate."],
+      ["G5", "Education", formatRM(categoryTotals[ClaimCategory.Education] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Education].limit), formatRM(cappedCategoryTotals[ClaimCategory.Education] || 0), "Self study courses and degrees study."],
       ...(hasSpouseRelief ? [["G5 Sp", "Spouse Relief (no income source)", "RM4,000.00", "RM4,000.00", "RM4,000.00", "Claim for spouse with no source of income"]] : []),
-      ["G6/G7", "G6/G7 Medical", formatRM(categoryTotals[ClaimCategory.Medical] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Medical].limit), formatRM(cappedCategoryTotals[ClaimCategory.Medical] || 0), "Self/spouse/children medical or vaccines."],
-      ["G9", "G9 Lifestyle", formatRM(categoryTotals[ClaimCategory.Lifestyle] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Lifestyle].limit), formatRM(cappedCategoryTotals[ClaimCategory.Lifestyle] || 0), "Books, tech, internet claim"],
-      ["G10", "G10 Sports", formatRM(categoryTotals[ClaimCategory.Sports] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Sports].limit), formatRM(cappedCategoryTotals[ClaimCategory.Sports] || 0), "Sports equipment, gym fees"],
-      ["G13", "G13 SSPN Net Savings Contribution", formatRM(sspnReceiptAmount), "RM8,000.00", formatRM(sspnCapped), "Net annual savings statement"],
-      ["G17", "G17 EPF Contributions", formatRM(epfVal), "RM4,000.00", formatRM(epfCapped), epfVal > 4000 ? "Capped at max RM4,000" : "EPF contribution applied"],
-      ["G20", "G20 SOCSO / EIS", formatRM(socsoVal + eisVal), "RM350.00", formatRM(totalG20), "Social security contributions"],
+      ["G6/G7", "Medical", formatRM(categoryTotals[ClaimCategory.Medical] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Medical].limit), formatRM(cappedCategoryTotals[ClaimCategory.Medical] || 0), "Self/spouse/children medical or vaccines."],
+      ["G9", "Lifestyle", formatRM(categoryTotals[ClaimCategory.Lifestyle] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Lifestyle].limit), formatRM(cappedCategoryTotals[ClaimCategory.Lifestyle] || 0), "Books, tech, internet claim"],
+      ["G10", "Sports", formatRM(categoryTotals[ClaimCategory.Sports] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Sports].limit), formatRM(cappedCategoryTotals[ClaimCategory.Sports] || 0), "Sports equipment, gym fees"],
+      ["G13", "SSPN Net Savings Contribution", formatRM(sspnReceiptAmount), "RM8,000.00", formatRM(sspnCapped), "Net annual savings statement"],
+      ["G17", "EPF Contributions", formatRM(epfVal), "RM4,000.00", formatRM(epfCapped), epfVal > 4000 ? "Capped at max RM4,000" : "EPF contribution applied"],
+      ["G20", "SOCSO / EIS", formatRM(socsoVal + eisVal), "RM350.00", formatRM(totalG20), "Social security contributions"],
       ["Other", "Other Claims", formatRM(categoryTotals[ClaimCategory.Other] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Other].limit), formatRM(cappedCategoryTotals[ClaimCategory.Other] || 0), "Other tax receipts subtotal"],
-      ["G23", "G23 Total Relief (Transfer to B13)", { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, "-", { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, "Sum of G1 to G22 claims transferred directly to B13."]
+      ["G23", "Total Relief (Transfer to B13)", { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, "-", { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, "Sum of G1 to G22 claims transferred directly to B13."]
     ];
+
+    const formBePartGThemeStyles: any = {
+      theme: "plain",
+      styles: { 
+        fontSize: 6.5, 
+        cellPadding: 1.0, 
+        font: "helvetica", 
+        textColor: [20, 20, 20], 
+        lineColor: [140, 145, 150], 
+        lineWidth: 0.18,
+        overflow: "linebreak" 
+      },
+      headStyles: { 
+        fillColor: [232, 235, 238], 
+        fontStyle: "bold", 
+        textColor: [9, 36, 74], 
+        lineColor: [140, 145, 150], 
+        lineWidth: 0.18,
+        fontSize: 6.5 
+      },
+    };
 
     autoTable(doc, {
       startY: currentY,
       margin: { left: 15, right: 15 },
-      head: [["Item", "Form BE Relief Category Name / Details", "Declared Spents", "Max Limit", "Claimed (Capped)", "Status Note"]],
+      head: [["Item", "Form BE Relief Category Name / Details", "Declared Spent", "Max Limit", "Claimed (Capped)", "Status Note"]],
       body: reliefRows,
-      ...formBeThemeStyles,
+      ...formBePartGThemeStyles,
       columnStyles: {
-        0: { cellWidth: 14, fontStyle: "bold", textColor: [9, 36, 74] },
-        1: { cellWidth: 50, fontStyle: "bold" },
-        2: { cellWidth: 24 }, // regular Font weight
-        3: { cellWidth: 22 },
-        4: { cellWidth: 24, fontStyle: "bold", textColor: [0, 168, 132] },
+        0: { cellWidth: 10, fontStyle: "bold", textColor: [9, 36, 74] },
+        1: { cellWidth: 60, fontStyle: "bold" },
+        2: { cellWidth: 22 }, 
+        3: { cellWidth: 20 },
+        4: { cellWidth: 22, fontStyle: "bold", textColor: [0, 168, 132] },
         5: { cellWidth: 46 }
       }
     } as any);
@@ -1156,14 +1325,10 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         {/* Buttons */}
         <div className="grid grid-cols-2 gap-2 pb-0.5">
           <button
-            onClick={onNavigateToSetup}
-            className={`h-9 px-3.5 rounded-xl text-[10px] font-black tracking-wide border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              isSetupComplete 
-                ? "bg-white text-[#09244A] border-neutral-250 hover:bg-neutral-50"
-                : "bg-teal-brand text-white border-teal-brand hover:bg-[#009473]"
-            }`}
+            onClick={handleDownloadAllReceiptImages}
+            className="h-9 px-3.5 rounded-xl text-[10px] font-black tracking-wide border border-neutral-250 bg-white text-[#09244A] hover:bg-neutral-50 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
           >
-            <span>{isSetupComplete ? "Edit Setup" : "Complete Setup"}</span>
+            <span>Download Receipts</span>
           </button>
           <button
             onClick={handleDownloadDraft}

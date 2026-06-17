@@ -12,6 +12,103 @@ interface AddScanViewProps {
   isDemo?: boolean;
 }
 
+const generateMockCanvasDataUrl = (merchant: string, amount: string, date: string, category?: string) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 320;
+  canvas.height = 420;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  // Background
+  ctx.fillStyle = "#fcfcf9";
+  ctx.fillRect(0, 0, 320, 420);
+
+  // Border Dash/Solid
+  ctx.strokeStyle = "#222222";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.strokeRect(8, 8, 304, 404);
+  ctx.setLineDash([]); // Reset line dash
+
+  // Header Title
+  ctx.fillStyle = "#111827";
+  ctx.font = "bold 16px monospace";
+  ctx.textAlign = "center";
+  const name = (merchant || "RECEIPT").toUpperCase();
+  ctx.fillText(name, 160, 45);
+
+  // Subtitle
+  ctx.fillStyle = "#6B7280";
+  ctx.font = "bold 10px monospace";
+  ctx.fillText("DEMO RECEIPT PROOF", 160, 65);
+
+  // Solid line
+  ctx.strokeStyle = "#222222";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(25, 80);
+  ctx.lineTo(295, 80);
+  ctx.stroke();
+
+  // Basic Info
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#111827";
+  ctx.font = "11px monospace";
+  ctx.fillText(`DATE: ${date || "2026-06-17"}`, 25, 110);
+  ctx.fillText(`REF: TX5-DEMO-${Math.floor(100000 + Math.random() * 900000)}`, 25, 128);
+  ctx.fillText("STATUS: APPROVED", 25, 146);
+
+  // Dashed line
+  ctx.strokeStyle = "#4B5563";
+  ctx.beginPath();
+  ctx.setLineDash([3, 3]);
+  ctx.moveTo(25, 165);
+  ctx.lineTo(295, 165);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Category & Item
+  ctx.fillStyle = "#111827";
+  ctx.font = "bold 12px monospace";
+  ctx.fillText("ITEMS", 25, 190);
+
+  ctx.fillStyle = "#4B5563";
+  ctx.font = "10px monospace";
+  ctx.fillText(`Category: ${category || "Lifestyle/Other"}`, 25, 210);
+  
+  ctx.fillStyle = "#111827";
+  ctx.font = "11px monospace";
+  ctx.fillText("1x Verified Claim Expense", 25, 230);
+  
+  ctx.textAlign = "right";
+  ctx.fillText(`RM ${amount}`, 295, 230);
+
+  // Dashed line
+  ctx.beginPath();
+  ctx.setLineDash([3, 3]);
+  ctx.moveTo(25, 260);
+  ctx.lineTo(295, 260);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Total
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#111827";
+  ctx.font = "bold 13px monospace";
+  ctx.fillText("TOTAL TYPE RM", 25, 290);
+
+  ctx.textAlign = "right";
+  ctx.fillText(`RM ${amount}`, 295, 290);
+
+  // Footer
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#6B7280";
+  ctx.font = "9px monospace";
+  ctx.fillText("Thank you for testing Tax5!", 160, 350);
+
+  return canvas.toDataURL("image/jpeg", 0.85);
+};
+
 export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCancel, smartSetup, isDemo }) => {
   // Device camera and file picker input references
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,6 +212,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageMimeType, setImageMimeType] = useState<string | null>(null);
+  const [compressedDataUrl, setCompressedDataUrl] = useState<string | null>(null);
   const [isReading, setIsReading] = useState(false);
   const [detectedText, setDetectedText] = useState("");
   const [isDetectedTextExpanded, setIsDetectedTextExpanded] = useState(false);
@@ -324,6 +422,49 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
     }
   }, [imageBase64, imageMimeType, autoReadAfterImageLoad]);
 
+  // Background resize & compression for localStorage safety
+  React.useEffect(() => {
+    if (imageBase64 && imageMimeType) {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1000; // max dimension to keep localStorage safe
+          
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.75); // high compression, beautiful look
+            setCompressedDataUrl(dataUrl);
+          } else {
+            setCompressedDataUrl(`data:${imageMimeType};base64,${imageBase64}`);
+          }
+        } catch (err) {
+          console.error("Failed to compress image:", err);
+          setCompressedDataUrl(`data:${imageMimeType};base64,${imageBase64}`);
+        }
+      };
+      img.onerror = () => {
+        setCompressedDataUrl(`data:${imageMimeType};base64,${imageBase64}`);
+      };
+      img.src = `data:${imageMimeType};base64,${imageBase64}`;
+    }
+  }, [imageBase64, imageMimeType]);
+
   // Image Upload and Base64 convert handler
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -344,6 +485,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
     setImagePreviewUrl(null);
     setImageBase64(null);
     setImageMimeType(null);
+    setCompressedDataUrl(null);
     setDetectedText("");
     setScanMessage(null);
     setGeminiErrorMsg(null);
@@ -541,6 +683,10 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
       const rawText = `=== SIMULATED RAW RECEIPT ===\nSTORE: ${template.merchant}\nDATE: ${selectedDate}\nPAYMENT: CASH / ONLINE\nITEMS:\n- taxable items 1x RM ${template.amount.toFixed(2)}\nTOTAL: RM ${template.amount.toFixed(2)}\n=============================\nTAX5 RULES DETECTED\nNO OFFICIAL ADVICE IMPLIED.`;
       setDetectedText(rawText);
 
+      // Generate inline mock proof receipt image!
+      const mockSvgUrl = generateMockCanvasDataUrl(template.merchant, template.amount.toFixed(2), selectedDate);
+      setCompressedDataUrl(mockSvgUrl);
+
       setIsScanning(false);
       setScanMessage("Simulation complete! Verify the pre-filled fields below.");
     }, 900);
@@ -573,6 +719,11 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
       return;
     }
 
+    let finalReceiptImageDataUrl = compressedDataUrl || undefined;
+    if (isDemo && !finalReceiptImageDataUrl) {
+      finalReceiptImageDataUrl = generateMockCanvasDataUrl(merchant, parseFloat(amount).toFixed(2), date, category);
+    }
+
     // Call submit matching exact Omit parameters with newly added metadata fields
     onSaveReceipt({
       merchant,
@@ -589,6 +740,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
       confidence,
       suggestionWhy,
       suggestionCheck,
+      receiptImageDataUrl: finalReceiptImageDataUrl,
     });
   };
 

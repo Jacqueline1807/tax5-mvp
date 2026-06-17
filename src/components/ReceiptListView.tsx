@@ -14,11 +14,127 @@ import {
   Sparkles,
   Search,
   SlidersHorizontal,
-  X
+  X,
+  Download
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { SuggestionInsightsCard } from "./SuggestionInsightsCard";
 import { Receipt, ClaimStatus } from "../types";
+
+const downloadReceiptImage = (receipt: Receipt) => {
+  if (!receipt.receiptImageDataUrl) return;
+  
+  const getExtensionFromDataUrl = (dataUrl: string): string => {
+    if (dataUrl.startsWith("data:image/png")) return "png";
+    if (dataUrl.startsWith("data:image/webp")) return "webp";
+    if (dataUrl.startsWith("data:image/gif")) return "gif";
+    if (dataUrl.startsWith("data:image/svg+xml")) return "svg";
+    return "jpg"; // Default
+  };
+
+  const ext = getExtensionFromDataUrl(receipt.receiptImageDataUrl);
+  
+  const merchantClean = (receipt.merchant || "receipt")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-_]/g, "")
+    .trim()
+    .replace(/\s+/g, "_");
+
+  let dateStr = receipt.date;
+  if (!dateStr) {
+    if (receipt.createdAt) {
+      dateStr = new Date(receipt.createdAt).toISOString().split('T')[0];
+    } else {
+      dateStr = "2026-06-17";
+    }
+  }
+
+  const filename = `${merchantClean}_${dateStr}_receipt.${ext}`;
+
+  try {
+    const parts = receipt.receiptImageDataUrl.split(",");
+    if (parts.length >= 2) {
+      const header = parts[0];
+      const mimeMatch = header.match(/data:(.*?);/);
+      const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+      const binaryStr = atob(parts[1]);
+      const len = binaryStr.length;
+      const u8arr = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        u8arr[i] = binaryStr.charCodeAt(i);
+      }
+      const blob = new Blob([u8arr], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      return;
+    }
+  } catch (err) {
+    console.error("Direct download fallback failed, attempting regular href download", err);
+  }
+
+  const link = document.createElement("a");
+  link.href = receipt.receiptImageDataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+const ReceiptImagePreview = ({ 
+  src, 
+  onOpenViewer, 
+  onDownload 
+}: { 
+  src: string; 
+  onOpenViewer: () => void; 
+  onDownload: () => void;
+}) => {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="font-bold text-navy flex items-center gap-1.5 text-[10px] uppercase tracking-wider">
+          <FileText className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+          <span>Receipt image:</span>
+        </p>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownload();
+          }}
+          className="flex items-center gap-1 text-[9px] font-extrabold text-teal-brand hover:text-[#009473] transition-colors uppercase tracking-wider cursor-pointer"
+        >
+          <Download className="w-3 h-3 shrink-0" />
+          <span>Download image</span>
+        </button>
+      </div>
+      <div 
+        className="relative bg-neutral-100 border border-neutral-200 rounded-xl overflow-hidden cursor-pointer group transition-all"
+        onClick={onOpenViewer}
+      >
+        <img 
+          src={src} 
+          alt="Receipt Proof" 
+          referrerPolicy="no-referrer"
+          className="w-full max-h-[140px] object-cover block bg-neutral-50 group-hover:scale-[1.01] transition-transform duration-300"
+        />
+        <div className="absolute inset-0 bg-black/10 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+          <div className="bg-black/60 text-white rounded-lg px-2.5 py-1 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            <span>Click to expand & zoom</span>
+          </div>
+        </div>
+        <div className="absolute bottom-2 right-2 bg-black/65 text-white rounded-md px-1.5 py-0.5 text-[8px] font-bold">
+          Click to view
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface ReceiptListViewProps {
   receipts: Receipt[];
@@ -42,6 +158,10 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>("All");
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   
+  // Image gallery viewer state
+  const [activeViewerReceipt, setActiveViewerReceipt] = useState<Receipt | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+
   // Tracking expanded states of receipt indices
   const [expandedReceipts, setExpandedReceipts] = useState<Record<string, boolean>>({});
 
@@ -401,6 +521,19 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                             {receipt.notes ? receipt.notes : "No additional claim notes saved. Keep this digital copy as proof in case of LHDN audits."}
                           </p>
                         </div>
+
+                        {receipt.receiptImageDataUrl && (
+                          <div className="pt-2 border-t border-neutral-150">
+                            <ReceiptImagePreview 
+                              src={receipt.receiptImageDataUrl} 
+                              onOpenViewer={() => {
+                                setZoomLevel(1);
+                                setActiveViewerReceipt(receipt);
+                              }}
+                              onDownload={() => downloadReceiptImage(receipt)}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -409,6 +542,89 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
             </div>
           )}
         </>
+      )}
+
+      {/* Contained fullscreen Interactive Image Gallery Viewer Modal */}
+      {activeViewerReceipt && (
+        <div className="absolute inset-0 bg-neutral-950/95 z-55 flex flex-col justify-between overflow-hidden animate-fadeIn">
+          {/* Header */}
+          <div className="p-4 flex items-center justify-between border-b border-white/10 text-white z-10 bg-gradient-to-b from-black/85 to-transparent">
+            <div className="min-w-0 pr-4 text-left">
+              <h3 className="font-extrabold text-xs truncate uppercase tracking-widest text-[#00D7AA]">{activeViewerReceipt.merchant || "Receipt"}</h3>
+              <p className="text-[10px] text-neutral-400 font-mono mt-0.5">{activeViewerReceipt.date || "Date unspecified"}</p>
+            </div>
+            <button 
+              onClick={() => setActiveViewerReceipt(null)}
+              className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Interactive Zoomable Body viewport */}
+          <div className="flex-1 relative flex items-center justify-center p-6 overflow-auto bg-neutral-900/90 select-none">
+            <div 
+              className="transition-transform duration-200 ease-out max-w-full max-h-[50vh]"
+              style={{ transform: `scale(${zoomLevel})` }}
+            >
+              <img 
+                src={activeViewerReceipt.receiptImageDataUrl} 
+                alt="Receipt Full Preview" 
+                referrerPolicy="no-referrer"
+                className="max-w-full max-h-[50vh] object-contain rounded-xl shadow-2xl border border-white/5 bg-neutral-950"
+              />
+            </div>
+          </div>
+
+          {/* Controls & Gallery actions footer */}
+          <div className="p-4 flex flex-col gap-3.5 bg-gradient-to-t from-black/90 via-black/45 to-transparent border-t border-white/5 z-10 text-white">
+            {/* Zoom Controls */}
+            <div className="flex items-center justify-center gap-2 bg-black/40 backdrop-blur-md rounded-full py-1.5 px-3 mx-auto border border-white/5">
+              <button 
+                onClick={() => setZoomLevel(prev => Math.max(0.5, prev - 0.25))}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-xs font-black transition-all cursor-pointer text-white"
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <span className="text-[10px] font-mono select-none w-14 text-center text-neutral-300 font-black">
+                {Math.round(zoomLevel * 100)}%
+              </span>
+              <button 
+                onClick={() => setZoomLevel(prev => Math.min(3, prev + 0.25))}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-xs font-black transition-all cursor-pointer text-white"
+                title="Zoom In"
+              >
+                +
+              </button>
+              {zoomLevel !== 1 && (
+                <button 
+                  onClick={() => setZoomLevel(1)}
+                  className="ml-1.5 text-[9px] font-extrabold uppercase bg-white/15 hover:bg-white/25 text-white/90 px-2 py-0.5 rounded transition-all cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            
+            {/* Action Group Buttons */}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => downloadReceiptImage(activeViewerReceipt!)}
+                className="flex-1 h-10 rounded-xl bg-teal-brand text-white font-bold text-xs hover:bg-[#009473] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Proof</span>
+              </button>
+              <button 
+                onClick={() => setActiveViewerReceipt(null)}
+                className="flex-1 h-10 rounded-xl bg-white/10 border border-white/20 text-white font-black text-xs hover:bg-white/15 transition-all text-center cursor-pointer"
+              >
+                Close Gallery
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

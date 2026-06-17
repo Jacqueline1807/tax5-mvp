@@ -52,6 +52,7 @@ export interface Receipt {
   confidence?: "High" | "Medium" | "Low";
   suggestionWhy?: string;
   suggestionCheck?: string;
+  receiptImageDataUrl?: string;
 }
 
 export type ScreenType = 

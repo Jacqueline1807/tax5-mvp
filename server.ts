@@ -246,9 +246,9 @@ async function startServer() {
 
       const controller = new AbortController();
       timeoutId = setTimeout(() => {
-        console.log("Gemini timeout triggered after 20 seconds");
+        console.log("Gemini timeout triggered after 45 seconds");
         controller.abort();
-      }, 20000);
+      }, 45000);
 
       // Lazy initialization of Gemini client with custom AbortController fetch integration
       const ai = new GoogleGenAI({
@@ -301,15 +301,18 @@ Output the extracted details strictly under the expected JSON format. Do not inc
 
       let response: any = null;
       let attempt = 0;
-      const maxAttempts = 1;
+      const modelsToTry = ["gemini-3.5-flash", "gemini-flash-latest"];
+      const maxAttempts = modelsToTry.length;
       let isFallback = false;
       let isTimeout = false;
 
       console.log("Gemini request started");
       while (attempt < maxAttempts) {
+        const modelToUse = modelsToTry[attempt];
         try {
+          console.log(`Trying Gemini call using model: ${modelToUse} (attempt ${attempt + 1}/${maxAttempts})`);
           const apiCallPromise = ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: modelToUse,
             contents: [imagePart, prompt],
             config: {
               responseMimeType: "application/json",
@@ -335,7 +338,7 @@ Output the extracted details strictly under the expected JSON format. Do not inc
           });
 
           response = await Promise.race([apiCallPromise, timeoutPromise]);
-          console.log("Gemini response received");
+          console.log(`Gemini response received successfully on attempt ${attempt + 1}`);
           break; // Success!
         } catch (err: any) {
           attempt++;
@@ -344,17 +347,18 @@ Output the extracted details strictly under the expected JSON format. Do not inc
             console.warn(`Gemini timeout occurred on attempt ${attempt}`);
             break;
           }
-          console.warn(`Gemini API call failed (attempt ${attempt}/${maxAttempts}):`, err.message || err);
+          console.warn(`Gemini API call with ${modelToUse} failed:`, err.message || err);
           if (attempt >= maxAttempts) {
             if (err?.status === "RESOURCE_EXHAUSTED" || err?.message?.includes("quota") || err?.message?.includes("429")) {
               console.warn("Gemini quota limit exceeded. Falling back gracefully to manual draft entry template.");
             } else {
-              console.warn("Gemini failed after maximum retries. Falling back gracefully to manual draft entry template:", err.message || err);
+              console.warn("Gemini failed after trying all available models. Falling back gracefully to manual draft entry template:", err.message || err);
             }
             isFallback = true;
             break;
           } else {
-            await new Promise((resolve) => setTimeout(resolve, 800 * attempt));
+            console.log("Waiting briefly before using fallback model...");
+            await new Promise((resolve) => setTimeout(resolve, 800));
           }
         }
       }
@@ -545,15 +549,35 @@ Guidelines for your responses:
 - Make sure to keep the answers accurate according to Malaysia LHDN rules of assessment.
 - Avoid any marketing fluff.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: message,
-        config: {
-          systemInstruction: systemInstruction,
-        }
-      });
+      let response: any = null;
+      let attempt = 0;
+      const chatModelsToTry = ["gemini-3.5-flash", "gemini-flash-latest"];
+      const maxChatAttempts = chatModelsToTry.length;
 
-      const responseText = (response.text || "").trim();
+      while (attempt < maxChatAttempts) {
+        const modelToUse = chatModelsToTry[attempt];
+        try {
+          console.log(`Trying chatbot Gemini call with model: ${modelToUse} (attempt ${attempt + 1}/${maxChatAttempts})`);
+          response = await ai.models.generateContent({
+            model: modelToUse,
+            contents: message,
+            config: {
+              systemInstruction: systemInstruction,
+            }
+          });
+          console.log(`Chatbot response successfully retrieved using model ${modelToUse}`);
+          break;
+        } catch (err: any) {
+          attempt++;
+          console.warn(`Chatbot call failed on model ${modelToUse}:`, err.message || err);
+          if (attempt >= maxChatAttempts) {
+            throw err; // throw and let general catch handle it with fallback text
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+
+      const responseText = (response?.text || "").trim();
       return res.json({ text: responseText || "I'm sorry, I could not formulate a response at this moment. Please check other common limits above." });
     } catch (err: any) {
       if (err?.status === "RESOURCE_EXHAUSTED" || err?.message?.includes("quota") || err?.message?.includes("429")) {
