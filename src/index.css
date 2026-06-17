@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-navy: #0B2545;
+  --color-navy-light: #134074;
+  --color-teal-brand: #00A884;
+  --color-teal-brand-light: #EBFBF7;
+  --color-amber-brand: #F59E0B;
+  --color-amber-brand-light: #FEF3C7;
+  --color-softred-brand: #EF4444;
+  --color-softred-brand-light: #FEE2E2;
+}
+
+/* Custom transitions and scrollbars for our app container */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #F8F9FA;
+  font-family: var(--font-sans);
+  color: #1F2937;
+}
+

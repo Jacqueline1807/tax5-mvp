@@ -1,0 +1,6 @@
+{
+  "name": "Tax5",
+  "description": "Pre-filing tax preparation app for Malaysian salaried taxpayers filing Form BE.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
