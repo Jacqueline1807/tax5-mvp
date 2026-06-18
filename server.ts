@@ -517,15 +517,19 @@ Output the extracted details strictly under the expected JSON format. Do not inc
   // API Route for Ask Tax5 custom queries (Gemini-powered chatbot helper with plain text requirements)
   app.post("/api/ask-chat", async (req, res) => {
     try {
-      const { message } = req.body;
+      const { message, language } = req.body;
       if (!message) {
         return res.status(400).json({ error: "Missing required field: message" });
       }
 
+      const isBM = language === "BM";
+
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         return res.json({
-          text: "I could not answer that clearly right now. You can ask about receipts, claim categories, Profile Setup, Summary, or Form BE draft preparation."
+          text: isBM
+            ? "Saya tidak dapat memberikan jawapan yang jelas buat masa ini. Anda boleh bertanya tentang resit, kategori tuntutan, Penyediaan Profil, Ringkasan, atau persediaan draf Borang BE."
+            : "I could not answer that clearly right now. You can ask about receipts, claim categories, Profile Setup, Summary, or Form BE draft preparation."
         });
       }
 
@@ -538,7 +542,7 @@ Output the extracted details strictly under the expected JSON format. Do not inc
         },
       });
 
-      const systemInstruction = `You are Tax5, an expert tax assistant for Malaysian citizens preparing Form BE tax filings.
+      let systemInstruction = `You are Tax5, an expert tax assistant for Malaysian citizens preparing Form BE tax filings.
 Guidelines for your responses:
 - DO NOT use any Markdown symbols or markdown formats under any circumstances.
 - DO NOT use any bolding, asterisks, italics, bullet points, tables, or headings.
@@ -548,6 +552,20 @@ Guidelines for your responses:
 - Do not provide final tax filing decisions; always present answers as preparation guidance.
 - Make sure to keep the answers accurate according to Malaysia LHDN rules of assessment.
 - Avoid any marketing fluff.`;
+
+      if (isBM) {
+        systemInstruction = `Anda adalah Tax5, pembantu cukai pakar untuk warganegara Malaysia yang menyediakan pengisian cukai Borang BE.
+Garis panduan untuk jawapan anda (Mati-matian mesti dijawab dalam Bahasa Melayu):
+- JAWAB DALAM BAHASA MELAYU SAHAJA. JANGAN gunakan Bahasa Inggeris.
+- JANGAN gunakan sebarang simbol Markdown atau format markdown dalam apa jua keadaan.
+- JANGAN gunakan sebarang huruf tebal, asterisk (*), huruf condong, butiran, jadual, atau tajuk.
+- Hasilkan output teks biasa yang bersih sahaja.
+- Pastikan jawapan pendek, mesra, mudah dibaca, dan sangat mesra peranti mudah alih (antara 3 hingga 5 ayat pendek sahaja).
+- Ingatkan pengguna untuk mengesahkan kelayakan akhir dengan LHDN atau MyTax apabila relevan.
+- Jangan berikan keputusan fail cukai akhir; sentiasa bentangkan jawapan sebagai panduan persediaan sahaja.
+- Pastikan jawapan tepat mengikut peraturan taksiran LHDN Malaysia.
+- Elakkan sebarang elemen pemasaran.`;
+      }
 
       let response: any = null;
       let attempt = 0;
@@ -578,15 +596,18 @@ Guidelines for your responses:
       }
 
       const responseText = (response?.text || "").trim();
-      return res.json({ text: responseText || "I'm sorry, I could not formulate a response at this moment. Please check other common limits above." });
+      return res.json({ text: responseText || (isBM ? "Maaf, saya tidak dapat merumuskan jawapan pada masa ini. Sila semak had biasa yang lain di atas." : "I'm sorry, I could not formulate a response at this moment. Please check other common limits above.") });
     } catch (err: any) {
+      const isBM = req.body?.language === "BM";
       if (err?.status === "RESOURCE_EXHAUSTED" || err?.message?.includes("quota") || err?.message?.includes("429")) {
         console.warn("Gemini chatbot quota limit exceeded. Loaded fallback response.");
       } else {
         console.warn("Gemini chatbot query failed:", err.message || err);
       }
       return res.json({
-        text: "I could not answer that clearly right now. You can ask about receipts, claim categories, Profile Setup, Summary, or Form BE draft preparation."
+        text: isBM
+          ? "Saya tidak dapat memberikan jawapan yang jelas buat masa ini. Anda boleh bertanya tentang resit, kategori tuntutan, Penyediaan Profil, Ringkasan, atau persediaan draf Borang BE."
+          : "I could not answer that clearly right now. You can ask about receipts, claim categories, Profile Setup, Summary, or Form BE draft preparation."
       });
     }
   });

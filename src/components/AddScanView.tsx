@@ -4,6 +4,7 @@ import { ClaimCategory, ClaimStatus, Receipt, SmartSetupData } from "../types";
 import { SCAN_TEMPLATES, ScanTemplate } from "../data/mockTemplates";
 import { adjustReceiptSuggestion, calculateCompletionStatus } from "../utils/suggestionEngine";
 import { SuggestionInsightsCard } from "./SuggestionInsightsCard";
+import { useLanguage } from "../context/LanguageContext";
 
 interface AddScanViewProps {
   onSaveReceipt: (receipt: Omit<Receipt, "id" | "createdAt" | "updatedAt">) => void;
@@ -110,6 +111,7 @@ const generateMockCanvasDataUrl = (merchant: string, amount: string, date: strin
 };
 
 export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCancel, smartSetup, isDemo }) => {
+  const { t, language } = useLanguage();
   // Device camera and file picker input references
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -137,21 +139,21 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
 
   // Full rich dropdown categories mapping to Form BE codes
   const dropdownOptions = [
-    { id: "G9", label: "Lifestyle", category: ClaimCategory.Lifestyle, helper: "Capped RM2,500", displayName: "Lifestyle - Reading, Tech & Internet" },
-    { id: "G6/G7", label: "Medical / Health Screening", category: ClaimCategory.Medical, helper: "Combined RM10,000", displayName: "Medical / Health Screening" },
-    { id: "G5", label: "Education Fees", category: ClaimCategory.Education, helper: "Capped RM7,050", displayName: "Self-Education Fees" },
-    { id: "G10", label: "Sports Equipment / Activities", category: ClaimCategory.Sports, helper: "Capped RM1,000", displayName: "Lifestyle - Sports" },
-    { id: "G17/G19", label: "Insurance / Takaful", category: ClaimCategory.Insurance, helper: "Combined RM3,000", displayName: "Insurance / Takaful" },
-    { id: "G2", label: "Parents / Grandparents Support", category: ClaimCategory.Other, helper: "Needs review", displayName: "Parents' Medical & Carer Expenses" },
-    { id: "G3", label: "Basic Supporting Equipment", category: ClaimCategory.Other, helper: "Capped RM6,000", displayName: "Basic Supporting Equipment" },
-    { id: "G11", label: "Breastfeeding Equipment", category: ClaimCategory.Other, helper: "Capped RM1,000", displayName: "Breastfeeding Equipment" },
-    { id: "G12", label: "Childcare / Kindergarten", category: ClaimCategory.Other, helper: "Capped RM3,000", displayName: "Childcare & Kindergarten Relief" },
-    { id: "G13", label: "SSPN Savings", category: ClaimCategory.Other, helper: "Capped RM8,000", displayName: "SSPN Net Savings" },
-    { id: "G18", label: "Private Retirement Scheme (PRS)", category: ClaimCategory.Other, helper: "Capped RM3,000", displayName: "PRS Deferred Annuity" },
-    { id: "G20", label: "SOCSO / EIS", category: ClaimCategory.Other, helper: "Capped RM350", displayName: "SOCSO / EIS Contribution" },
-    { id: "G21", label: "Food Waste Composting Machine", category: ClaimCategory.Other, helper: "Capped RM2,500", displayName: "Food Waste Composting Machine" },
-    { id: "G22", label: "First Home Loan Interest", category: ClaimCategory.Other, helper: "Needs review", displayName: "First Home Loan Interest" },
-    { id: "Other", label: "Other Allowed Relief", category: ClaimCategory.Other, helper: "Needs review", displayName: "Other Allowed Relief" }
+    { id: "G9", label: language === "BM" ? "Gaya Hidup" : "Lifestyle", category: ClaimCategory.Lifestyle, helper: language === "BM" ? "Had RM2,500" : "Capped RM2,500", displayName: language === "BM" ? "Gaya Hidup - Membaca, Peranti & Internet" : "Lifestyle - Reading, Tech & Internet" },
+    { id: "G6/G7", label: language === "BM" ? "Perubatan / Saringan Kesihatan" : "Medical / Health Screening", category: ClaimCategory.Medical, helper: language === "BM" ? "Gabungan RM10,000" : "Combined RM10,000", displayName: language === "BM" ? "Perubatan / Saringan Kesihatan" : "Medical / Health Screening" },
+    { id: "G5", label: language === "BM" ? "Yuran Pendidikan" : "Education Fees", category: ClaimCategory.Education, helper: language === "BM" ? "Had RM7,050" : "Capped RM7,050", displayName: language === "BM" ? "Yuran Pendidikan Diri" : "Self-Education Fees" },
+    { id: "G10", label: language === "BM" ? "Peralatan / Aktiviti Sukan" : "Sports Equipment / Activities", category: ClaimCategory.Sports, helper: language === "BM" ? "Had RM1,000" : "Capped RM1,000", displayName: language === "BM" ? "Gaya Hidup - Sukan" : "Lifestyle - Sports" },
+    { id: "G17/G19", label: language === "BM" ? "Insurans / Takaful" : "Insurance / Takaful", category: ClaimCategory.Insurance, helper: language === "BM" ? "Gabungan RM3,000" : "Combined RM3,000", displayName: language === "BM" ? "Insurans / Takaful" : "Insurance / Takaful" },
+    { id: "G2", label: language === "BM" ? "Ibu Bapa / Datuk Nenek" : "Parents / Grandparents Support", category: ClaimCategory.Other, helper: language === "BM" ? "Perlu semakan" : "Needs review", displayName: language === "BM" ? "Perbelanjaan Perubatan Ibu Bapa" : "Parents' Medical & Carer Expenses" },
+    { id: "G3", label: language === "BM" ? "Peralatan Sokongan Asas" : "Basic Supporting Equipment", category: ClaimCategory.Other, helper: language === "BM" ? "Had RM6,000" : "Capped RM6,000", displayName: language === "BM" ? "Peralatan Sokongan Asas" : "Basic Supporting Equipment" },
+    { id: "G11", label: language === "BM" ? "Peralatan Penyusuan Susu Ibu" : "Breastfeeding Equipment", category: ClaimCategory.Other, helper: language === "BM" ? "Had RM1,000" : "Capped RM1,000", displayName: language === "BM" ? "Peralatan Penyusuan Susu Ibu" : "Breastfeeding Equipment" },
+    { id: "G12", label: language === "BM" ? "Tadika / Taska" : "Childcare / Kindergarten", category: ClaimCategory.Other, helper: language === "BM" ? "Had RM3,000" : "Capped RM3,000", displayName: language === "BM" ? "Pelepasan Yuran Tadika & Taska" : "Childcare & Kindergarten Relief" },
+    { id: "G13", label: language === "BM" ? "Simpanan SSPN" : "SSPN Savings", category: ClaimCategory.Other, helper: language === "BM" ? "Had RM8,000" : "Capped RM8,000", displayName: language === "BM" ? "Simpanan Bersih SSPN" : "SSPN Net Savings" },
+    { id: "G18", label: language === "BM" ? "Skim Persaraan Swasta (PRS)" : "Private Retirement Scheme (PRS)", category: ClaimCategory.Other, helper: language === "BM" ? "Had RM3,000" : "Capped RM3,000", displayName: language === "BM" ? "Anuiti PRS" : "PRS Deferred Annuity" },
+    { id: "G20", label: "SOCSO / EIS", category: ClaimCategory.Other, helper: language === "BM" ? "Had RM350" : "Capped RM350", displayName: language === "BM" ? "Sumbangan PERKESO / SIP" : "SOCSO / EIS Contribution" },
+    { id: "G21", label: language === "BM" ? "Mesin Kompos Sisa Makanan" : "Food Waste Composting Machine", category: ClaimCategory.Other, helper: language === "BM" ? "Had RM2,500" : "Capped RM2,500", displayName: language === "BM" ? "Mesin Kompos Sisa Makanan" : "Food Waste Composting Machine" },
+    { id: "G22", label: language === "BM" ? "Faedah Pinjaman Perumahan Pertama" : "First Home Loan Interest", category: ClaimCategory.Other, helper: language === "BM" ? "Perlu semakan" : "Needs review", displayName: language === "BM" ? "Faedah Pinjaman Perumahan Pertama" : "First Home Loan Interest" },
+    { id: "Other", label: language === "BM" ? "Pelepasan Lain Dibenarkan" : "Other Allowed Relief", category: ClaimCategory.Other, helper: language === "BM" ? "Perlu semakan" : "Needs review", displayName: language === "BM" ? "Pelepasan Lain Dibenarkan" : "Other Allowed Relief" }
   ];
 
   const [selectedOptionId, setSelectedOptionId] = useState("");
@@ -627,60 +629,83 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
       setAmount(template.amount.toFixed(2));
       setCategory(template.category);
       setClaimStatus(template.claimStatus);
-      setNotes(template.notes);
+      setNotes(language === "BM" && template.notesBM ? template.notesBM : template.notes);
 
       // Programmatic Simulation Guide info
       let simGCode = "Other";
-      let simDisplayName = "Other allowable relief";
-      let simEvidence = "Receipt-based";
-      let simReason = "This transaction does not match a standard tax relief category. Please verify this is business or personal.";
+      let simDisplayName = language === "BM" ? "Pelepasan cukai dibenarkan yang lain" : "Other allowable relief";
+      let simEvidence = language === "BM" ? "Berasaskan resit" : "Receipt-based";
+      let simReason = language === "BM"
+        ? "Transaksi ini tidak sepadan dengan kategori pelepasan cukai standard. Sila sahkan sama ada ini adalah perbelanjaun perniagaan atau peribadi."
+        : "This transaction does not match a standard tax relief category. Please verify this is business or personal.";
 
       if (template.merchant === "Popular Bookstore") {
         simGCode = "G9";
-        simDisplayName = "Lifestyle - Reading, Tech & Internet";
-        simEvidence = "Receipt-based";
-        simReason = "This looks like a Lifestyle receipt for books. Please confirm this was for personal or family use.";
+        simDisplayName = language === "BM" ? "Gaya Hidup - Membaca, Peranti & Internet" : "Lifestyle - Reading, Tech & Internet";
+        simEvidence = language === "BM" ? "Berasaskan resit" : "Receipt-based";
+        simReason = language === "BM"
+          ? "Ini kelihatan seperti resit Gaya Hidup untuk buku. Sila sahkan ini adalah untuk kegunaan peribadi atau keluarga."
+          : "This looks like a Lifestyle receipt for books. Please confirm this was for personal or family use.";
       } else if (template.merchant === "Pantai Hospital Kuala Lumpur") {
         simGCode = "G2";
-        simDisplayName = "Parents' Medical & Carer Expenses";
-        simEvidence = "Receipt-based";
-        simReason = "This may be Medical, but it needs checking because medical claims for parents require certified bills or registered carer documents.";
+        simDisplayName = language === "BM" ? "Kos Perubatan & Penjagaan Ibu Bapa" : "Parents' Medical & Carer Expenses";
+        simEvidence = language === "BM" ? "Berasaskan resit" : "Receipt-based";
+        simReason = language === "BM"
+          ? "Ini mungkin tuntutan Perubatan, tetapi ia memerlukan pemeriksaan lanjut kerana tuntutan perubatan untuk ibu bapa memerlukan bil yang diperakui atau dokumen penjaga berdaftar."
+          : "This may be Medical, but it needs checking because medical claims for parents require certified bills or registered carer documents.";
       } else if (template.merchant === "Decathlon KL East") {
         simGCode = "G10";
-        simDisplayName = "Lifestyle - Sports";
-        simEvidence = "Receipt-based";
-        simReason = "This looks like a Lifestyle Sports receipt. Please confirm it was for personal or family use and not motorized/commercial sports.";
+        simDisplayName = language === "BM" ? "Gaya Hidup - Sukan" : "Lifestyle - Sports";
+        simEvidence = language === "BM" ? "Berasaskan resit" : "Receipt-based";
+        simReason = language === "BM"
+          ? "Ini kelihatan seperti resit Gaya Hidup Sukan. Sila sahkan ia adalah untuk kegunaan peribadi atau keluarga dan bukan sukan bermotor/komersial."
+          : "This looks like a Lifestyle Sports receipt. Please confirm it was for personal or family use and not motorized/commercial sports.";
       } else if (template.merchant === "Prudential Assurance Malaysia") {
         simGCode = "G17";
-        simDisplayName = "Life Insurance & EPF";
-        simEvidence = "Payment-record-based";
-        simReason = "This looks like an insurance payment. Please check the policy type before filing. Pensionable public servants have different limits.";
+        simDisplayName = language === "BM" ? "Insurans Hayat & KWSP" : "Life Insurance & EPF";
+        simEvidence = language === "BM" ? "Berasaskan rekod pembayaran" : "Payment-record-based";
+        simReason = language === "BM"
+          ? "Ini kelihatan seperti pembayaran insurans. Sila semak jenis polisi sebelum memfailkan. Penjawat awam berpencen mempunyai had yang berbeza."
+          : "This looks like an insurance payment. Please check the policy type before filing. Pensionable public servants have different limits.";
       } else if (template.merchant === "Brickfields College (BAC)") {
         simGCode = "G5";
-        simDisplayName = "Self-Education Fees";
-        simEvidence = "Receipt-based";
-        simReason = "Self-education course fees need to be verified against LHDN's list of recognized institutions and eligible courses of study.";
+        simDisplayName = language === "BM" ? "Yuran Pendidikan Diri" : "Self-Education Fees";
+        simEvidence = language === "BM" ? "Berasaskan resit" : "Receipt-based";
+        simReason = language === "BM"
+          ? "Yuran kursus pendidikan diri perlu disahkan dengan senarai institusi yang diiktiraf oleh LHDN dan kursus pengajian yang layak."
+          : "Self-education course fees need to be verified against LHDN's list of recognized institutions and eligible courses of study.";
       } else if (template.merchant === "FamilyMart Bangsar") {
         simGCode = "Other";
-        simDisplayName = "Other allowable relief";
-        simEvidence = "Receipt-based";
-        simReason = "This looks like dining or food expenditure. Personal meals cannot be claimed under Malaysian tax reliefs.";
+        simDisplayName = language === "BM" ? "Pelepasan cukai dibenarkan yang lain" : "Other allowable relief";
+        simEvidence = language === "BM" ? "Berasaskan resit" : "Receipt-based";
+        simReason = language === "BM"
+          ? "Ini kelihatan seperti perbelanjaan makanan atau makan minum. Perbelanjaan makan peribadi tidak boleh dituntut di bawah pelepasan cukai Malaysia."
+          : "This looks like dining or food expenditure. Personal meals cannot be claimed under Malaysian tax reliefs.";
       } else if (template.merchant === "SSPN-i Deposit (PTPTN)") {
         simGCode = "G13";
-        simDisplayName = "SSPN Net Savings";
-        simEvidence = "Receipt-based";
-        simReason = "SSPN child savings receipt. Remember that the receipts alone may not show your net savings. Check your SSPN statement and update the final amount if needed.";
+        simDisplayName = language === "BM" ? "Tabungan Bersih SSPN" : "SSPN Net Savings";
+        simEvidence = language === "BM" ? "Berasaskan resit" : "Receipt-based";
+        simReason = language === "BM"
+          ? "Resit simpanan pendidikan anak SSPN. Ingat bahawa resit sahaja mungkin tidak menunjukkan simpanan bersih anda. Semak penyata SSPN anda dan kemas kini jumlah jika perlu."
+          : "SSPN child savings receipt. Remember that the receipts alone may not show your net savings. Check your SSPN statement and update the final amount if needed.";
       }
 
       setFormBEItem(simGCode);
       setTax5DisplayName(simDisplayName);
       setEvidenceType(simEvidence);
-      setClassificationReason(`${simReason} \n\nDisclaimer: Tax5 gives a preparation suggestion only. Final claim eligibility must be checked using official LHDN/MyTax information.`);
+
+      const simDisclaimer = language === "BM"
+        ? "Penafian: Tax5 memberikan cadangan persediaan sahaja. Kelayakan tuntutan akhir mesti disemak menggunakan maklumat rasmi LHDN/MyTax."
+        : "Disclaimer: Tax5 gives a preparation suggestion only. Final claim eligibility must be checked using official LHDN/MyTax information.";
+
+      setClassificationReason(`${simReason} \n\n${simDisclaimer}`);
 
       // Apply smart suggestions
       applySmartSuggestions(simGCode, template.claimStatus);
       
-      const rawText = `=== SIMULATED RAW RECEIPT ===\nSTORE: ${template.merchant}\nDATE: ${selectedDate}\nPAYMENT: CASH / ONLINE\nITEMS:\n- taxable items 1x RM ${template.amount.toFixed(2)}\nTOTAL: RM ${template.amount.toFixed(2)}\n=============================\nTAX5 RULES DETECTED\nNO OFFICIAL ADVICE IMPLIED.`;
+      const rawText = language === "BM"
+        ? `=== RAW RESIT DISIMULASIKAN ===\nKEDAI: ${template.merchant}\nTARIKH: ${selectedDate}\nPEMBAYARAN: TUNAI / ATAS TALIAN\nITEM:\n- item boleh cukai 1x RM ${template.amount.toFixed(2)}\nJUMLAH: RM ${template.amount.toFixed(2)}\n=============================\nPERATURAN TAX5 DIKESAN\nTIADA NASIHAT RASMI DIMAKSUDKAN.`
+        : `=== SIMULATED RAW RECEIPT ===\nSTORE: ${template.merchant}\nDATE: ${selectedDate}\nPAYMENT: CASH / ONLINE\nITEMS:\n- taxable items 1x RM ${template.amount.toFixed(2)}\nTOTAL: RM ${template.amount.toFixed(2)}\n=============================\nTAX5 RULES DETECTED\nNO OFFICIAL ADVICE IMPLIED.`;
       setDetectedText(rawText);
 
       // Generate inline mock proof receipt image!
@@ -688,7 +713,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
       setCompressedDataUrl(mockSvgUrl);
 
       setIsScanning(false);
-      setScanMessage("Simulation complete! Verify the pre-filled fields below.");
+      setScanMessage(language === "BM" ? "Simulasi selesai! Sila sahkan medan yang telah diisi di bawah." : "Simulation complete! Verify the pre-filled fields below.");
     }, 900);
   };
 
@@ -699,19 +724,19 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
 
     // Custom form validations
     if (!merchant.trim()) {
-      newErrors.merchant = "Please enter the receipt name.";
+      newErrors.merchant = language === "BM" ? "Sila masukkan nama resit." : "Please enter the receipt name.";
     }
     if (!date) {
-      newErrors.date = "Please choose the receipt date.";
+      newErrors.date = language === "BM" ? "Sila pilih tarikh resit." : "Please choose the receipt date.";
     }
     if (!amount.trim() || isNaN(Number(amount)) || Number(amount) <= 0) {
-      newErrors.amount = "Please enter a valid receipt amount.";
+      newErrors.amount = language === "BM" ? "Sila masukkan jumlah resit yang sah." : "Please enter a valid receipt amount.";
     }
     if (!category) {
-      newErrors.category = "Please choose a claim category.";
+      newErrors.category = language === "BM" ? "Sila pilih kategori tuntutan." : "Please choose a claim category.";
     }
     if (!claimStatus) {
-      newErrors.claimStatus = "Please choose a claim status.";
+      newErrors.claimStatus = language === "BM" ? "Sila pilih status tuntutan." : "Please choose a claim status.";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -753,15 +778,15 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
       {/* Header Bar */}
       <div className="flex items-center justify-between pb-1 border-b border-neutral-100">
         <div>
-          <h2 className="text-xl font-bold font-heading text-navy">Scan Receipt</h2>
-          <p className="text-xs text-neutral-500">Keep receipts organized for Form BE draft.</p>
+          <h2 className="text-xl font-bold font-heading text-navy">{language === "BM" ? "Imbas Resit" : "Scan Receipt"}</h2>
+          <p className="text-xs text-neutral-500">{language === "BM" ? "Susun resit dengan teratur untuk draf Borang BE." : "Keep receipts organized for Form BE draft."}</p>
         </div>
         <button
           type="button"
           onClick={onCancel}
           className="text-xs font-semibold px-3 py-1.5 rounded-xl border border-neutral-200 text-neutral-500 hover:text-navy cursor-pointer hover:bg-neutral-50 transition-colors"
         >
-          Cancel
+          {t("common", "cancel")}
         </button>
       </div>
 
@@ -772,7 +797,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-brand-light text-teal-brand text-[10px] font-extrabold">1</span>
-              <span className="font-bold text-xs text-navy uppercase tracking-wider">Add your receipt</span>
+              <span className="font-bold text-xs text-navy uppercase tracking-wider">{language === "BM" ? "Tambah resit anda" : "Add your receipt"}</span>
             </div>
             {selectedFile && (
               <button
@@ -781,7 +806,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                 className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 font-semibold transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Remove</span>
+                <span>{language === "BM" ? "Padam" : "Remove"}</span>
               </button>
             )}
           </div>
@@ -802,12 +827,12 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                 {!isCameraReady && (
                   <div className="flex flex-col items-center justify-center gap-2 text-white">
                     <Loader2 className="w-5 h-5 animate-spin text-teal-brand" />
-                    <span className="text-xs font-medium text-neutral-400">Starting camera...</span>
+                    <span className="text-xs font-medium text-neutral-400">{language === "BM" ? "Memulakan kamera..." : "Starting camera..."}</span>
                   </div>
                 )}
                 <div className="absolute top-2 left-2 bg-black/60 rounded-full px-2 py-0.5 text-[8px] font-bold text-white tracking-wider flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span>
-                  <span>LIVE CAMERA</span>
+                  <span>{language === "BM" ? "KAMERA AKTIF" : "LIVE CAMERA"}</span>
                 </div>
               </div>
               
@@ -823,7 +848,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                       : "bg-neutral-800 text-neutral-500 cursor-not-allowed opacity-50"
                   }`}
                 >
-                  <span>Capture Photo</span>
+                  <span>{language === "BM" ? "Tangkap Foto" : "Capture Photo"}</span>
                 </button>
                 <button
                   type="button"
@@ -831,7 +856,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                   onClick={stopCamera}
                   className="h-9 px-4 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl text-xs cursor-pointer active:scale-[0.98] transition-all"
                 >
-                  <span>Cancel</span>
+                  <span>{t("common", "cancel")}</span>
                 </button>
               </div>
             </div>
@@ -841,8 +866,8 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                 <Camera className="w-6 h-6 stroke-[2]" />
               </div>
 
-              <p className="text-xs font-bold text-navy mb-1">Take Photo or Upload Image</p>
-              <p className="text-[10px] text-neutral-400 mb-4 font-semibold">Supports PNG, JPG, or JPEG file types</p>
+              <p className="text-xs font-bold text-navy mb-1">{language === "BM" ? "Ambil Foto atau Muat Naik Imej" : "Take Photo or Upload Image"}</p>
+              <p className="text-[10px] text-neutral-400 mb-4 font-semibold">{language === "BM" ? "Menyokong fail jenis PNG, JPG, atau JPEG" : "Supports PNG, JPG, or JPEG file types"}</p>
 
               <div className="flex flex-col gap-2 w-full max-w-[260px]">
                 {isDemo && (
@@ -853,7 +878,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                     className="w-full h-10 bg-amber-brand/10 hover:bg-amber-brand/20 text-[#B45309] border border-amber-brand/35 font-extrabold rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer transition-all active:scale-[0.98] mb-1 animate-pulse"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-[#D97706]" />
-                    <span>Try demo receipt</span>
+                    <span>{language === "BM" ? "Cuba resit demo" : "Try demo receipt"}</span>
                   </button>
                 )}
 
@@ -865,7 +890,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                   className="w-full h-9 bg-teal-brand hover:bg-[#009170] text-white font-bold rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-xs cursor-pointer transition-all active:scale-[0.98]"
                 >
                   <Camera className="w-3.5 h-3.5 text-white" />
-                  <span>Scan Receipt / Take Photo</span>
+                  <span>{language === "BM" ? "Ambil Foto / Imbas Resit" : "Scan Receipt / Take Photo"}</span>
                 </button>
 
                 {/* Upload File button triggering standard hidden file picker input */}
@@ -875,7 +900,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full h-9 bg-[#F3FBF8] hover:bg-[#EAF7F4] text-teal-brand border border-teal-500/10 font-bold rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer transition-all active:scale-[0.98]"
                 >
-                  <span>Upload File</span>
+                  <span>{language === "BM" ? "Muat Naik Fail" : "Upload File"}</span>
                 </button>
               </div>
 
@@ -902,7 +927,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                   {selectedFile ? (selectedFile.size / 1024).toFixed(1) : "0"} KB
                 </p>
                 <span className="inline-block mt-1 text-[9px] bg-teal-brand-light text-teal-brand font-bold px-1.5 py-0.5 rounded">
-                  Ready to read
+                  {language === "BM" ? "Sedia untuk dibaca" : "Ready to read"}
                 </span>
               </div>
             </div>
@@ -920,12 +945,12 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
               {isReading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
-                  <span>Reading your receipt...</span>
+                  <span>{language === "BM" ? "Membaca resit anda..." : "Reading your receipt..."}</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 stroke-[2.5]" />
-                  <span>Read Receipt</span>
+                  <span>{language === "BM" ? "Baca Resit" : "Read Receipt"}</span>
                 </>
               )}
             </button>
@@ -942,19 +967,19 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                 {isScanning ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Extracting sample...</span>
+                    <span>{language === "BM" ? "Mengekstrak sampel..." : "Extracting sample..."}</span>
                   </>
                 ) : (
                   <>
                     <Camera className="w-3.5 h-3.5" />
-                    <span>Use sample receipt (Demo Mode)</span>
+                    <span>{language === "BM" ? "Guna resit contoh (Mod Demo)" : "Use sample receipt (Demo Mode)"}</span>
                   </>
                 )}
               </button>
             )}
 
             <span className="block text-[9.5px] text-neutral-400 text-center leading-normal">
-              Receipt reading is basic in this MVP. Please check the details before saving.
+              {language === "BM" ? "Pembacaan resit di tahap asas dalam MVP ini. Sila semak butiran sebelum menyimpan." : "Receipt reading is basic in this MVP. Please check the details before saving."}
             </span>
           </div>
         </div>
@@ -966,9 +991,9 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
               <Check className="w-3 h-3 stroke-[3]" />
             </div>
             <div className="text-xs font-medium text-[#008064]">
-              {scanMessage}
+              {language === "BM" ? "Hasil Imbasan Berjaya Dimuatkan" : scanMessage}
               <p className="text-[10px] text-neutral-400 mt-1 leading-normal font-sans">
-                💡 SCANNED DATA LOADED. Feel free to adjust any fields below.
+                💡 {language === "BM" ? "DATA IMBASAN TELAH DIISI. Anda bebas untuk melaraskan mana-mana butiran di bawah." : "SCANNED DATA LOADED. Feel free to adjust any fields below."}
               </p>
             </div>
           </div>
@@ -987,11 +1012,15 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
               <AlertCircle className="w-5 h-5 text-amber-brand shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <span className="text-xs font-bold text-neutral-800 block">
-                  {isFromCamera ? "Scanning Failed" : "AI Reading Unavailable"}
+                  {isFromCamera 
+                    ? (language === "BM" ? "Imbasan Gagal" : "Scanning Failed") 
+                    : (language === "BM" ? "Pembacaan AI Tidak Tersedia" : "AI Reading Unavailable")}
                 </span>
                 <p className="text-xs text-neutral-600 leading-relaxed font-sans">
                   {isFromCamera 
-                    ? "Tax5 could not read this photo clearly. Please retake the photo or enter details manually." 
+                    ? (language === "BM" 
+                      ? "Tax5 tidak dapat membaca foto ini dengan jelas. Sila ambil semula foto atau masukkan butiran secara manual." 
+                      : "Tax5 could not read this photo clearly. Please retake the photo or enter details manually.") 
                     : geminiErrorMsg}
                 </p>
               </div>
@@ -1010,7 +1039,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                     className="h-9 px-4 bg-teal-brand hover:bg-[#009170] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-[0.98]"
                   >
                     <Camera className="w-3.5 h-3.5" />
-                    <span>Retake Photo</span>
+                    <span>{language === "BM" ? "Ambil Semula Foto" : "Retake Photo"}</span>
                   </button>
                   
                   <button
@@ -1019,7 +1048,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                     onClick={handleEnterManually}
                     className="h-9 px-4 bg-white hover:bg-neutral-50 text-neutral-600 border border-neutral-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                   >
-                    Enter Manually
+                    {language === "BM" ? "Masukkan Manual" : "Enter Manually"}
                   </button>
                 </>
               ) : (
@@ -1031,7 +1060,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                     className="h-9 px-4 bg-teal-brand hover:bg-[#009170] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Try Again</span>
+                    <span>{language === "BM" ? "Cuba Lagi" : "Try Again"}</span>
                   </button>
                   
                   <button
@@ -1040,7 +1069,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                     onClick={handleEnterManually}
                     className="h-9 px-4 bg-white hover:bg-neutral-50 text-neutral-600 border border-neutral-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                   >
-                    Enter Manually
+                    {language === "BM" ? "Masukkan Manual" : "Enter Manually"}
                   </button>
                 </>
               )}
@@ -1057,9 +1086,9 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
               className="w-full px-4 py-3 bg-neutral-50/50 flex items-center justify-between border-b border-neutral-100 cursor-pointer hover:bg-neutral-50 transition-colors"
             >
               <span className="text-xs font-bold text-navy uppercase tracking-wider flex items-center gap-1.5">
-                <span>Detected Text</span>
+                <span>{language === "BM" ? "Teks Dikesan" : "Detected Text"}</span>
                 <span className="bg-teal-brand-light text-teal-brand text-[9px] px-1.5 py-0.5 rounded font-black">
-                  Transcribed
+                  {language === "BM" ? "Disalin" : "Transcribed"}
                 </span>
               </span>
               {isDetectedTextExpanded ? (
@@ -1095,18 +1124,18 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200/60 space-y-3.5">
             <div className="flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-brand-light text-teal-brand text-[10px] font-extrabold">2</span>
-              <span className="font-bold text-xs text-navy uppercase tracking-wider">Check the details</span>
+              <span className="font-bold text-xs text-navy uppercase tracking-wider">{language === "BM" ? "Semak butiran" : "Check the details"}</span>
             </div>
 
             {/* Merchant Name */}
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-neutral-600">
-                Receipt Name / Merchant <span className="text-red-500">*</span>
+                {language === "BM" ? "Nama Resit / Peniaga" : "Receipt Name / Merchant"} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 id="input-merchant"
-                placeholder="e.g. Popular Bookstore, Pantai Hospital"
+                placeholder={language === "BM" ? "cth. Kedai Buku Popular, Hospital Pantai" : "e.g. Popular Bookstore, Pantai Hospital"}
                 value={merchant}
                 onChange={(e) => {
                   setMerchant(e.target.value);
@@ -1128,7 +1157,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
               {/* Receipt Date */}
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-neutral-600">
-                  Receipt Date <span className="text-red-500">*</span>
+                  {language === "BM" ? "Tarikh Resit" : "Receipt Date"} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -1153,7 +1182,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
               {/* Amount */}
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-neutral-600">
-                  Amount in RM <span className="text-red-500">*</span>
+                  {language === "BM" ? "Jumlah dalam RM" : "Amount in RM"} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-bold">RM</span>
@@ -1185,16 +1214,16 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200/60 space-y-3.5">
             <div className="flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-teal-brand-light text-teal-brand text-[10px] font-extrabold">3</span>
-              <span className="font-bold text-xs text-navy uppercase tracking-wider">Choose claim info</span>
+              <span className="font-bold text-xs text-navy uppercase tracking-wider">{language === "BM" ? "Pilih maklumat tuntutan" : "Choose claim info"}</span>
             </div>
 
             {/* Category Dropdown */}
             <div className="space-y-1">
               <div className="flex justify-between items-center">
                 <label className="block text-xs font-semibold text-neutral-600">
-                  Claim Category <span className="text-red-500">*</span>
+                  {language === "BM" ? "Kategori Tuntutan" : "Claim Category"} <span className="text-red-500">*</span>
                 </label>
-                <span className="text-[10px] text-neutral-400 font-bold">RM Limit Capped</span>
+                <span className="text-[10px] text-neutral-400 font-bold">{language === "BM" ? "Had Maksimum" : "RM Limit Capped"}</span>
               </div>
               
               <select
@@ -1205,7 +1234,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                   errors.category ? "border-red-500 focus:border-red-500" : "border-neutral-250 focus:border-teal-brand"
                 }`}
               >
-                <option value="">-- Choose Category --</option>
+                <option value="">{language === "BM" ? "-- Pilih Kategori --" : "-- Choose Category --"}</option>
                 {dropdownOptions.map((opt) => (
                   <option key={opt.id} value={opt.id}>
                     {opt.label}
@@ -1215,7 +1244,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
 
               {selectedOptionId && (
                 <p className="text-[10.5px] text-teal-brand font-medium mt-1 bg-[#F3FBF8] border border-teal-500/10 px-2.5 py-1 rounded-lg">
-                  💡 Limit status: <span className="font-bold text-teal-brand">{dropdownOptions.find(o => o.id === selectedOptionId)?.helper}</span>
+                  💡 {language === "BM" ? "Status had" : "Limit status"}: <span className="font-bold text-teal-brand">{dropdownOptions.find(o => o.id === selectedOptionId)?.helper}</span>
                 </p>
               )}
 
@@ -1230,26 +1259,26 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
             {/* Claim Status Selection */}
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-neutral-600 mb-1">
-                Malaysian Claim Status <span className="text-red-500">*</span>
+                {language === "BM" ? "Status Tuntutan Malaysia" : "Malaysian Claim Status"} <span className="text-red-500">*</span>
               </label>
 
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { 
                     id: ClaimStatus.Claimable, 
-                    label: "Claimable", 
+                    label: language === "BM" ? t("common", "statusClaimable") : "Claimable", 
                     style: "border-teal-brand/35 bg-[#F1FBF9] text-teal-brand hover:bg-teal-brand/10",
                     activeStyle: "border-teal-brand bg-teal-brand text-white rounded-xl ring-2 ring-teal-brand/20 shadow-xs"
                   },
                   { 
                     id: ClaimStatus.CheckAgain, 
-                    label: "Needs Review", 
+                    label: language === "BM" ? "Perlu Semak" : "Needs Review", 
                     style: "border-amber-brand/35 bg-[#FFFDF5] text-amber-brand hover:bg-[#FFFDF5]",
                     activeStyle: "border-amber-brand bg-amber-brand text-white rounded-xl ring-2 ring-amber-brand/30 shadow-xs"
                   },
                   { 
                     id: ClaimStatus.NonClaimable, 
-                    label: "Not-eligible", 
+                    label: language === "BM" ? t("common", "statusNonClaimable") : "Not-eligible", 
                     style: "border-neutral-200 bg-neutral-50 text-neutral-500 hover:bg-neutral-100",
                     activeStyle: "border-neutral-700 bg-neutral-800 text-white rounded-xl shadow-xs"
                   }
@@ -1284,10 +1313,10 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
             {/* Entry Notes */}
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-neutral-600">
-                Notes (Optional)
+                {language === "BM" ? "Nota (Pilihan)" : "Notes (Optional)"}
               </label>
               <textarea
-                placeholder="Provide context like purchase item or vendor details..."
+                placeholder={language === "BM" ? "Berikan konteks seperti butiran pembelian atau butiran peniaga..." : "Provide context like purchase item or vendor details..."}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full h-16 p-3 rounded-xl bg-[#FAFBFB] border border-neutral-250 text-xs focus:bg-white focus:outline-none transition-all resize-none"
@@ -1300,10 +1329,10 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
             <Info className="w-4 h-4 text-navy-light shrink-0 mt-0.5" />
             <div className="text-[10px] text-navy/80 leading-normal space-y-1">
               <p>
-                <strong>Important Notice:</strong> While Tax5 simplifies tracking using smart OCR classification, it <strong>does not</strong> constitute official tax or financial advice.
+                <strong>{language === "BM" ? "Notis Penting:" : "Important Notice:"}</strong> {language === "BM" ? "Walaupun Tax5 memudahkan penjejakan menggunakan klasifikasi OCR pintar, ia tidak membentuk nasihat cukai atau kewangan rasmi." : "While Tax5 simplifies tracking using smart OCR classification, it does not constitute official tax or financial advice."}
               </p>
               <p>
-                Please keep physical copies of your tax receipts for at least 7 years under LHDN audit requirements.
+                {language === "BM" ? "Sila simpan salinan fizikal resit cukai anda sekurang-kurangnya 7 tahun di bawah keperluan audit LHDN." : "Please keep physical copies of your tax receipts for at least 7 years under LHDN audit requirements."}
               </p>
             </div>
           </div>
@@ -1315,7 +1344,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
               id="btn-save-receipt"
               className="w-full h-12 bg-teal-brand hover:bg-[#009170] text-white font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-xs text-xs hover:scale-[1.01] active:scale-[0.99] transition-all"
             >
-              Save Receipt
+              {language === "BM" ? "Simpan Resit" : "Save Receipt"}
             </button>
           </div>
         </form>

@@ -17,6 +17,8 @@ import {
 import { Logo } from "./Logo";
 import { Receipt, ClaimStatus, SmartSetupData } from "../types";
 import { calculateCompletionStatus } from "../utils/suggestionEngine";
+import { useLanguage } from "../context/LanguageContext";
+import { LanguageToggle } from "./LanguageToggle";
 
 interface HomeViewProps {
   receipts: Receipt[];
@@ -45,6 +47,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onNavigateToSetup,
   onNavigateToAsk,
 }) => {
+  const { t, language } = useLanguage();
   // Calculations based on actual store
   const savedReceiptsCount = receipts.length;
 
@@ -117,9 +120,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <Logo size="sm" showText={true} />
         
         <div className="flex items-center gap-1.5 justify-end relative" ref={dropdownRef}>
+          <LanguageToggle />
           {isDemo && (
             <div className="bg-[#EAFDF5] border border-[#00A884]/15 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold text-[#00A884] select-none shadow-3xs shrink-0">
-              Demo Mode
+              {t("common", "demoMode")}
             </div>
           )}
           
@@ -134,7 +138,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           >
             <User className="w-3 h-3 stroke-[2.5] text-[#09244A]/80 shrink-0" />
             <span className="text-[10.5px]">
-              {isDemo ? "Demo" : (userName?.trim().split(/\s+/)[0] || "Account")}
+              {isDemo ? "Demo" : (userName?.trim().split(/\s+/)[0] || t("common", "account"))}
             </span>
             {!isDemo && completionStatus !== "Ready" && (
               <span className="w-1.5 h-1.5 rounded-full bg-[#EF4444] shrink-0 ml-1" />
@@ -161,7 +165,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   {/* User info container */}
                   <div className="space-y-1">
                     <div className="text-[13px] font-extrabold text-[#09244A] tracking-tight leading-none animate-fadeIn">
-                      {isDemo ? "Demo User" : (userName || "User")}
+                      {isDemo ? (language === "BM" ? "Pengguna Demo" : "Demo User") : (userName || (language === "BM" ? "Pengguna" : "User"))}
                     </div>
                     {(!isDemo && userEmail) && (
                       <div className="text-[10.5px] font-semibold text-neutral-500 break-all select-all leading-normal">
@@ -170,7 +174,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     )}
                     {isDemo && (
                       <div className="text-[10.5px] font-semibold text-neutral-500 leading-normal">
-                        Demo Mode
+                        {t("common", "demoMode")}
                       </div>
                     )}
                   </div>
@@ -185,19 +189,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       className="w-full text-left flex items-center justify-between py-1.5 px-2 hover:bg-[#F2FAF6] rounded-xl transition-all cursor-pointer border-none bg-transparent select-none group"
                     >
                       <span className="text-[11.5px] font-extrabold text-[#09244A] group-hover:text-[#4FAE91] transition-colors">
-                        Profile Setup
+                        {t("common", "profileSetup")}
                       </span>
                       {completionStatus === "Ready" ? (
                         <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-[#00A884]/20 bg-[#EAFDF5] text-[#009170] uppercase shrink-0">
-                          Ready
+                          {t("common", "ready")}
                         </span>
                       ) : completionStatus === "Partly done" ? (
                         <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-[#FFF1C2]/45 bg-[#FFFDF0] text-amber-700 uppercase shrink-0">
-                          In progress
+                          {t("common", "inProgress")}
                         </span>
                       ) : (
                         <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-600 uppercase shrink-0">
-                          Needs review
+                          {t("common", "needsReview")}
                         </span>
                       )}
                     </button>
@@ -213,7 +217,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         }}
                         className="w-full text-left text-[11.5px] font-extrabold text-[#A94A44] hover:text-[#8D342E] transition-colors flex items-center cursor-pointer border-none bg-transparent p-0"
                       >
-                        <span>{isDemo ? "Exit Demo Mode" : "Sign Out"}</span>
+                        <span>{isDemo ? t("common", "exitDemo") : t("common", "signOut")}</span>
                       </button>
                     </div>
                   )}
@@ -228,10 +232,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="z-10 relative">
         <div className="space-y-0.5 text-left">
           <h3 className="text-xl font-bold tracking-tight text-navy font-heading">
-            Hi, {isDemo ? "Demo User" : (userName || "User")} 👋
+            {language === "BM" ? "Hai, " : "Hi, "}{isDemo ? (language === "BM" ? "Pengguna Demo" : "Demo User") : (userName || (language === "BM" ? "Pengguna" : "User"))} 👋
           </h3>
           <p className="text-[11.5px] text-[#4F5B66] font-semibold">
-            {isDemo ? "Demo Mode • Scanned receipts stay locally." : "Your Form BE receipt draft is being prepared."}
+            {isDemo ? (language === "BM" ? "Mod Demo • Resit yang diimbas disimpan secara tempatan." : "Demo Mode • Scanned receipts stay locally.") : (language === "BM" ? "Draf resit Borang BE anda sedang disediakan." : "Your Form BE receipt draft is being prepared.")}
           </p>
         </div>
       </div>
@@ -241,10 +245,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className="text-[#0B2545]/85 font-black text-[10px] tracking-wider uppercase font-heading">
-              Form BE Draft
+              {t("summary", "personalInfoTitle")}
             </span>
             <span className="bg-white/80 text-[#009170] text-[9px] font-black px-2 py-0.5 rounded-full border border-teal-500/10">
-              Y/A 2026
+              {language === "BM" ? "TT 2026" : "Y/A 2026"}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -257,7 +261,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 color: "#2F8F72"
               }}
             >
-              View Summary
+              {language === "BM" ? "Lihat Ringkasan" : "View Summary"}
             </button>
           </div>
         </div>
@@ -273,7 +277,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </span>
           </div>
           <p className="text-[10px] text-[#4F5B66] font-semibold">
-            Claimable total from saved receipts
+            {t("home", "totalClaimed")}
           </p>
         </div>
 
@@ -289,7 +293,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             }}
           >
             <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#16A34A] shrink-0"></span>
-            <span className="truncate">{claimableCount} Claimable</span>
+            <span className="truncate">{`${claimableCount} ${t("common", "statusClaimable")}`}</span>
           </div>
 
           {/* Needs Review pill */}
@@ -302,7 +306,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             }}
           >
             <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#D97706] shrink-0"></span>
-            <span className="truncate">{checkAgainCount} Need review</span>
+            <span className="truncate">{`${checkAgainCount} ${t("common", "statusCheckAgain")}`}</span>
           </div>
 
           {/* Not Eligible pill */}
@@ -315,7 +319,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             }}
           >
             <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#6B7280] shrink-0"></span>
-            <span className="truncate">{nonClaimableCount} Not eligible</span>
+            <span className="truncate">{`${nonClaimableCount} ${t("common", "statusNonClaimable")}`}</span>
           </div>
         </div>
       </div>
@@ -324,10 +328,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="bg-white border border-[#E1EDE8] rounded-2xl p-5 shadow-3xs flex flex-col space-y-4 z-10 relative">
         <div className="space-y-0.5">
           <h4 className="font-bold text-xs text-navy font-heading">
-            Add receipt
+            {t("home", "secAddReceipt")}
           </h4>
           <p className="text-[10px] text-[#4F5B66] font-medium leading-normal">
-            Scan, upload, or enter a receipt manually.
+            {language === "BM" ? "Imbas, muat naik, atau masukkan resit secara manual." : "Scan, upload, or enter a receipt manually."}
           </p>
         </div>
 
@@ -352,7 +356,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             
             <div className="space-y-0.5 relative z-10">
               <span className="font-bold text-[13.5px] tracking-wide">
-                Scan receipt
+                {t("home", "secScanBtn")}
               </span>
             </div>
           </button>
@@ -364,14 +368,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
               className="bg-[#F4FAF7] hover:bg-[#EAF5EF] border border-[#00A884]/8 rounded-lg h-8 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-[#008F6B] cursor-pointer active:scale-[0.98] transition-all"
             >
               <Upload className="w-3 h-3 stroke-[2] text-[#00A884]" />
-              <span>Upload file</span>
+              <span>{t("addScan", "uploadTitle")}</span>
             </button>
             <button
               onClick={onNavigateToScan}
               className="bg-[#F4FAF7] hover:bg-[#EAF5EF] border border-[#00A884]/8 rounded-lg h-8 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-[#008F6B] cursor-pointer active:scale-[0.98] transition-all"
             >
               <Edit2 className="w-3 h-3 stroke-[2] text-[#00A884]" />
-              <span>Manual entry</span>
+              <span>{t("home", "secManualBtn")}</span>
             </button>
           </div>
         </div>
@@ -385,10 +389,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
           <div className="min-w-0">
             <h4 className="font-bold text-xs text-[#0B2545] font-heading">
-              Tax Records
+              {t("receipts", "receiptsTitle")}
             </h4>
             <p className="text-[11px] text-[#4F5B66] font-medium mt-0.5">
-              {savedReceiptsCount} {savedReceiptsCount === 1 ? 'receipt' : 'receipts'} saved for Y/A 2026
+              {language === "BM" 
+                ? `${savedReceiptsCount} resit disimpan untuk TT 2026` 
+                : `${savedReceiptsCount} ${savedReceiptsCount === 1 ? 'receipt' : 'receipts'} saved for Y/A 2026`
+              }
             </p>
           </div>
         </div>
@@ -400,7 +407,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             color: "#09244A"
           }}
         >
-          <span>View</span>
+          <span>{language === "BM" ? "Lihat" : "View"}</span>
           <ChevronRight className="w-2.5 h-2.5 stroke-[2.5]" />
         </button>
       </div>
@@ -413,10 +420,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
           <div className="min-w-0">
             <h4 className="font-bold text-xs text-[#0B2545] font-heading">
-              Unsure about a claim?
+              {language === "BM" ? "Kurang pasti tentang tuntutan?" : "Unsure about a claim?"}
             </h4>
             <p className="text-[11px] text-[#4F5B66] font-medium leading-normal mt-0.5">
-              Ask Tax5 before filing.
+              {language === "BM" ? "Tanya Tax5 sebelum memfailkan." : "Ask Tax5 before filing."}
             </p>
           </div>
         </div>
@@ -429,7 +436,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             color: "#9A6500"
           }}
         >
-          <span>Ask Tax5</span>
+          <span>{language === "BM" ? "Tanya Tax5" : "Ask Tax5"}</span>
           <ChevronRight className="w-3 h-3 stroke-[2.5]" />
         </button>
       </div>
@@ -438,7 +445,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="text-center w-full mt-auto pt-3 pb-0.5 z-10 relative">
         <p className="text-[8.5px] text-[#4F5B66] font-semibold leading-relaxed flex items-center justify-center gap-1 px-2 opacity-95">
           <HelpCircle className="w-3 h-3 text-neutral-400 shrink-0" />
-          <span>Pre-filing guidance only. Verify final eligibility with LHDN/MyTax.</span>
+          <span>{language === "BM" ? "Panduan pra-pemfailan sahaja. Sahkan kelayakan akhir dengan LHDN/MyTax." : "Pre-filing guidance only. Verify final eligibility with LHDN/MyTax."}</span>
         </p>
       </div>
     </div>

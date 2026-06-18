@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AlertCircle, ShieldAlert, Check, HelpCircle } from "lucide-react";
 import { ClaimCategory, ClaimStatus, Receipt } from "../types";
 import { SuggestionInsightsCard } from "./SuggestionInsightsCard";
+import { useLanguage } from "../context/LanguageContext";
 
 interface ReceiptEditViewProps {
   receipt: Receipt;
@@ -14,6 +15,8 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
   onSave,
   onCancel,
 }) => {
+  const { t, language } = useLanguage();
+
   // Input fields binding states
   const [merchant, setMerchant] = useState("");
   const [date, setDate] = useState("");
@@ -40,13 +43,13 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!merchant.trim()) {
-      newErrors.merchant = "Please enter the receipt name.";
+      newErrors.merchant = language === "BM" ? "Sila masukkan nama resit." : "Please enter the receipt name.";
     }
     if (!date) {
-      newErrors.date = "Please choose the receipt date.";
+      newErrors.date = language === "BM" ? "Sila pilih tarikh resit." : "Please choose the receipt date.";
     }
     if (!amount.trim() || isNaN(Number(amount)) || Number(amount) <= 0) {
-      newErrors.amount = "Please enter a valid amount.";
+      newErrors.amount = language === "BM" ? "Sila masukkan jumlah yang sah." : "Please enter a valid amount.";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -74,8 +77,8 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
       {/* Header Bar */}
       <div className="flex items-center justify-between pb-1 border-b border-neutral-100">
         <div>
-          <h2 className="text-xl font-bold font-heading text-navy">Check Receipt Details</h2>
-          <p className="text-xs text-neutral-500">Update anything that looks wrong before filing.</p>
+          <h2 className="text-xl font-bold font-heading text-navy">{language === "BM" ? "Semak Butiran Resit" : "Check Receipt Details"}</h2>
+          <p className="text-xs text-neutral-500">{language === "BM" ? "Kemaskini apa-apa yang salah sebelum memfail." : "Update anything that looks wrong before filing."}</p>
         </div>
       </div>
 
@@ -98,7 +101,7 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
           {/* Merchant inputs */}
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-neutral-600">
-              Receipt Name / Merchant <span className="text-red-500">*</span>
+              {language === "BM" ? "Nama Resit / Peniaga" : "Receipt Name / Merchant"} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -125,7 +128,7 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
             {/* Purchase Date */}
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-neutral-600">
-                Receipt Date <span className="text-red-500">*</span>
+                {language === "BM" ? "Tarikh Resit" : "Receipt Date"} <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -150,7 +153,7 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
             {/* Expensed Money Amount */}
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-neutral-600">
-                Amount in RM <span className="text-red-500">*</span>
+                {language === "BM" ? "Jumlah dalam RM" : "Amount in RM"} <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-xs text-neutral-400 font-bold">RM</span>
@@ -182,7 +185,7 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
           {/* Form BE Category Selector Option */}
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-neutral-600">
-              Claim Category <span className="text-red-500">*</span>
+              {language === "BM" ? "Kategori Tuntutan" : "Claim Category"} <span className="text-red-500">*</span>
             </label>
             <select
               id="edit-category"
@@ -190,38 +193,38 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
               onChange={(e) => setCategory(e.target.value as ClaimCategory)}
               className="w-full h-10 px-3 rounded-xl bg-neutral-50/50 border border-neutral-250 text-xs focus:bg-white focus:outline-none transition-all cursor-pointer"
             >
-              <option value={ClaimCategory.Lifestyle}>Lifestyle (Capped RM2,500)</option>
-              <option value={ClaimCategory.Medical}>Medical Expenses (Capped RM10,000)</option>
-              <option value={ClaimCategory.Education}>Education fees (Capped RM7,000)</option>
-              <option value={ClaimCategory.Sports}>Sports Equipment / Activities (Capped RM1,000)</option>
-              <option value={ClaimCategory.Insurance}>Life & Takaful Premiums (Capped RM3,000)</option>
-              <option value={ClaimCategory.Other}>Other allowed reliefs</option>
+              <option value={ClaimCategory.Lifestyle}>{language === "BM" ? "Gaya Hidup (Had RM2,500)" : "Lifestyle (Capped RM2,500)"}</option>
+              <option value={ClaimCategory.Medical}>{language === "BM" ? "Perbelanjaan Perubatan (Had RM10,000)" : "Medical Expenses (Capped RM10,000)"}</option>
+              <option value={ClaimCategory.Education}>{language === "BM" ? "Yuran Pendidikan (Had RM7,000)" : "Education fees (Capped RM7,000)"}</option>
+              <option value={ClaimCategory.Sports}>{language === "BM" ? "Alatan / Aktiviti Sukan (Had RM1,000)" : "Sports Equipment / Activities (Capped RM1,000)"}</option>
+              <option value={ClaimCategory.Insurance}>{language === "BM" ? "Premium Hayat & Takaful (Had RM3,000)" : "Life & Takaful Premiums (Capped RM3,000)"}</option>
+              <option value={ClaimCategory.Other}>{language === "BM" ? "Pelepasan dibenarkan lain" : "Other allowed reliefs"}</option>
             </select>
           </div>
 
           {/* Claim Status Option Badge Pills */}
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-neutral-600">
-              Claim Status <span className="text-red-500">*</span>
+              {language === "BM" ? "Status Tuntutan" : "Claim Status"} <span className="text-red-500">*</span>
             </label>
             
             <div className="grid grid-cols-3 gap-2">
               {[
                 { 
                   id: ClaimStatus.Claimable, 
-                  label: "Claimable", 
+                  label: language === "BM" ? t("common", "statusClaimable") : "Claimable", 
                   style: "border-teal-brand/35 bg-[#F1FBF9] text-teal-brand",
                   activeStyle: "border-teal-brand bg-teal-brand text-white rounded-xl ring-2 ring-teal-brand/20 shadow-sm"
                 },
                 { 
                   id: ClaimStatus.CheckAgain, 
-                  label: "Needs Review", 
+                  label: language === "BM" ? "Perlu Semak" : "Needs Review", 
                   style: "border-amber-brand/35 bg-[#FFFDF5] text-amber-brand",
                   activeStyle: "border-amber-brand bg-amber-brand text-white rounded-xl ring-2 ring-amber-brand/30 shadow-sm"
                 },
                 { 
                   id: ClaimStatus.NonClaimable, 
-                  label: "Not-eligible", 
+                  label: language === "BM" ? t("common", "statusNonClaimable") : "Not-eligible", 
                   style: "border-neutral-250 bg-neutral-50 text-neutral-500",
                   activeStyle: "border-neutral-700 bg-neutral-800 text-white rounded-xl shadow-sm"
                 }
@@ -246,11 +249,11 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
           {/* Custom Description Notes */}
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-neutral-600">
-              Filing Notes / Explanations
+              {language === "BM" ? "Nota Pemfailan / Penjelasan" : "Filing Notes / Explanations"}
             </label>
             <textarea
               id="edit-notes"
-              placeholder="Provide context like purchase item or vendor details..."
+              placeholder={language === "BM" ? "Berikan konteks seperti butiran pembelian atau butiran peniaga..." : "Provide context like purchase item or vendor details..."}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full h-16 p-3 rounded-xl bg-neutral-50/50 border border-neutral-250 text-xs focus:bg-white focus:outline-none transition-all resize-none"
@@ -261,8 +264,8 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
         {/* Preparation Guide Reminder Box */}
         <div className="bg-amber-brand-light/30 border border-amber-brand/10 rounded-xl p-3 flex gap-2.5">
           <ShieldAlert className="w-4 h-4 text-amber-brand shrink-0 mt-0.5" />
-          <p className="text-[10px] text-amber-brand font-medium leading-relaxed">
-            🎓 <strong>Preparation Guide Reminder:</strong> This status value is only a pre-filing aid. Please confirm final category eligibility and legal claim parameters using official MyTax/e-Filing manuals.
+          <p className="text-[10px] text-amber-brand font-medium leading-relaxed font-sans">
+            🎓 <strong>{language === "BM" ? "Peringatan Panduan Persediaan:" : "Preparation Guide Reminder:"}</strong> {language === "BM" ? "Nilai status ini hanyalah bantuan pra-pemfailan. Sila sahkan kelayakan kategori akhir dan parameter tuntutan undang-undang menggunakan manual rasmi MyTax/e-Filing." : "This status value is only a pre-filing aid. Please confirm final category eligibility and legal claim parameters using official MyTax/e-Filing manuals."}
           </p>
         </div>
 
@@ -273,7 +276,7 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
             onClick={onCancel}
             className="h-11 bg-white hover:bg-neutral-50 border border-neutral-250 rounded-xl text-neutral-500 text-xs flex items-center justify-center cursor-pointer transition-colors"
           >
-            Cancel
+            {language === "BM" ? "Batal" : "Cancel"}
           </button>
           
           <button
@@ -281,7 +284,7 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
             id="btn-confirm-edit"
             className="h-11 bg-teal-brand hover:bg-[#009170] text-white rounded-xl text-xs flex items-center justify-center font-semibold cursor-pointer transition-colors shadow-sm"
           >
-            Save Changes
+            {language === "BM" ? "Simpan Perubahan" : "Save Changes"}
           </button>
         </div>
       </form>

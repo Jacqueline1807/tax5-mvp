@@ -21,14 +21,20 @@ export enum ClaimStatus {
 export interface TaxReliefGuideline {
   formItemCode: string;
   displayName: string;
+  displayNameBM?: string;
   evidenceType: string;
+  evidenceTypeBM?: string;
   keywords: string[];
   suggestedAppCategory: ClaimCategory;
   defaultStatus: ClaimStatus;
   checkAgainConditions: string;
+  checkAgainConditionsBM?: string;
   userFacingNote: string;
+  userFacingNoteBM?: string;
   claimLimit?: string;
+  claimLimitBM?: string;
   requiredChecks: string[];
+  requiredChecksBM?: string[];
   sourceNote: string;
   lastReviewedYear: number;
 }
@@ -139,37 +145,44 @@ export interface CategoryInfo {
   name: ClaimCategory;
   limit: number;
   description: string;
+  descriptionBM?: string;
 }
 
 export const CATEGORY_LIMITS: Record<ClaimCategory, CategoryInfo> = {
   [ClaimCategory.Lifestyle]: {
     name: ClaimCategory.Lifestyle,
     limit: 2500,
-    description: "Reading materials, personal computer/smartphone, internet subscription, gym membership, printed newspaper."
+    description: "Reading materials, personal computer/smartphone, internet subscription, gym membership, printed newspaper.",
+    descriptionBM: "Bahan bacaan, komputer peribadi/telefon bimbit, langganan internet, keahlian gim, surat khabar bercetak."
   },
   [ClaimCategory.Medical]: {
     name: ClaimCategory.Medical,
     limit: 10000,
-    description: "Serious illness treatment, vaccination, complete medical examination, mental health guidance."
+    description: "Serious illness treatment, vaccination, complete medical examination, mental health guidance.",
+    descriptionBM: "Rawatan penyakit serius, vaksinasi, pemeriksaan perubatan penuh, panduan kesihatan mental."
   },
   [ClaimCategory.Education]: {
     name: ClaimCategory.Education,
     limit: 7000,
-    description: "Course of study in recognized institutions (self, master's or doctorate degree)."
+    description: "Course of study in recognized institutions (self, master's or doctorate degree).",
+    descriptionBM: "Kursus pengajian di institusi yang diiktiraf (diri sendiri, ijazah sarjana atau kedoktoran)."
   },
   [ClaimCategory.Sports]: {
     name: ClaimCategory.Sports,
     limit: 1000,
-    description: "Purchase of sports equipment, rental, entrance fee, registration fee for competition."
+    description: "Purchase of sports equipment, rental, entrance fee, registration fee for competition.",
+    descriptionBM: "Pembelian peralatan sukan, sewaan, yuran kemasukan, yuran pendaftaran untuk pertandingan sukan."
   },
   [ClaimCategory.Insurance]: {
     name: ClaimCategory.Insurance,
     limit: 3000,
-    description: "Life insurance premium paid to approved companies."
+    description: "Life insurance premium paid to approved companies.",
+    descriptionBM: "Premium insurans hayat yang dibayar kepada syarikat yang diluluskan."
   },
   [ClaimCategory.Other]: {
     name: ClaimCategory.Other,
     limit: 1000,
-    description: "Other allowable direct reliefs under Form BE guidelines."
+    description: "Other allowable direct reliefs under Form BE guidelines.",
+    descriptionBM: "Pelepasan langsung lain yang dibenarkan di bawah garis panduan Borang BE."
   }
 };

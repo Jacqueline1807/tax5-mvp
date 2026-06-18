@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Logo } from "./Logo";
 import { User, Mail, Lock, ArrowRight, ShieldCheck, HelpCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
+import { useLanguage } from "../context/LanguageContext";
+import { LanguageToggle } from "./LanguageToggle";
 
 interface DemoAccessViewProps {
   onContinue: (authData?: { user: any; session: any }) => void;
@@ -11,6 +13,7 @@ interface DemoAccessViewProps {
 type ScreenType = "LOGIN" | "SIGNUP";
 
 export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBack }) => {
+  const { t } = useLanguage();
   const [screen, setScreen] = useState<ScreenType>("LOGIN");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -113,15 +116,16 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
       <div className="absolute top-[-5%] left-[-15%] w-[220px] h-[220px] rounded-full bg-[#E5F5EF] blur-[85px] opacity-75 pointer-events-none z-0"></div>
       <div className="absolute bottom-[8%] right-[-10%] w-[200px] h-[200px] rounded-full bg-[#FFFBE3] blur-[75px] opacity-45 pointer-events-none z-0"></div>
 
-      {/* 1. Top Section: Back navigation bar */}
-      <div className="relative z-10 pt-0.5 pb-1 flex justify-start items-center shrink-0">
+      {/* 1. Top Section: Back navigation bar with Language Toggle */}
+      <div className="relative z-10 pt-0.5 pb-1 flex justify-between items-center shrink-0">
         <button 
           onClick={onBack}
           className="text-[13px] font-bold text-neutral-500 hover:text-navy cursor-pointer py-1 px-2 rounded-lg hover:bg-neutral-100/55 transition-colors flex items-center gap-1 select-none border-none bg-transparent"
         >
           <span className="text-[13px] font-bold leading-none">←</span>
-          <span>Back</span>
+          <span>{t("common", "back")}</span>
         </button>
+        <LanguageToggle />
       </div>
 
       {/* 2. Middle Section: Dynamic scrolling workspace for Brand Headers and Form Cards */}
@@ -134,10 +138,10 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
             </div>
             <div className="space-y-0.5">
               <h1 className="font-heading font-extrabold text-[18px] min-[370px]:text-[20px] text-navy tracking-tight leading-tight select-none">
-                {screen === "LOGIN" ? "Sign in to Tax5" : "Create your Tax5 account"}
+                {screen === "LOGIN" ? t("demoAccess", "loginTitle") : t("demoAccess", "signupTitle")}
               </h1>
               <p className="text-[11.5px] min-[370px]:text-[12.5px] text-neutral-500 leading-normal max-w-[260px] mx-auto font-semibold select-none">
-                Save receipts, organize claims, and prepare your Form BE draft.
+                {t("welcome", "subtitle")}
               </p>
             </div>
           </div>
@@ -175,7 +179,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
               {screen === "SIGNUP" && (
                 <div className="space-y-1 text-left">
                   <label className="text-[12px] font-bold text-navy/80 block select-none">
-                    Full name
+                    {t("demoAccess", "nameLabel")}
                   </label>
                   <div className="relative">
                     <span className="absolute inset-y-0 left-3 flex items-center text-neutral-400">
@@ -183,7 +187,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                     </span>
                     <input
                       type="text"
-                      placeholder="Enter your name"
+                      placeholder={t("demoAccess", "namePlace")}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       disabled={isLoading}
@@ -196,7 +200,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
               {/* Email field */}
               <div className="space-y-1 text-left">
                 <label className="text-[12px] font-bold text-navy/80 block select-none">
-                  Email address
+                  {t("demoAccess", "emailLabel")}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-3 flex items-center text-neutral-400">
@@ -205,7 +209,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                   <input
                     type="email"
                     required
-                    placeholder="Enter your email"
+                    placeholder={t("demoAccess", "emailPlace")}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
@@ -218,7 +222,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
               <div className="space-y-1 text-left">
                 <div className="flex justify-between items-center pr-0.5">
                   <label className="text-[12px] font-bold text-navy/80 block select-none">
-                    Password
+                    {t("demoAccess", "passLabel")}
                   </label>
                   {screen === "LOGIN" && (
                     <button 
@@ -226,7 +230,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                       onClick={handleForgotPassword}
                       className="text-[11.5px] font-extrabold text-[#4FAE91] hover:text-[#459E84] hover:underline cursor-pointer py-0.5 px-0.5 rounded border-none bg-transparent"
                     >
-                      Forgot password?
+                      {t("demoAccess", "forgotPass")}
                     </button>
                   )}
                 </div>
@@ -236,7 +240,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                   </span>
                   <input
                     type="password"
-                    placeholder="Enter your password"
+                    placeholder={t("demoAccess", "passPlace")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
@@ -251,7 +255,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                 disabled={isLoading}
                 className="w-full h-[40px] bg-[#4FAE91] hover:bg-[#459E84] text-white font-extrabold flex items-center justify-center gap-1.5 rounded-xl transition-all active:scale-[0.98] cursor-pointer text-[13px] border-none select-none mt-1 shadow-sm disabled:opacity-75 disabled:pointer-events-none"
               >
-                <span>{screen === "LOGIN" ? "Sign In" : "Create Account"}</span>
+                <span>{screen === "LOGIN" ? t("demoAccess", "loginTitle") : t("demoAccess", "signupTitle")}</span>
                 <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
             </form>
@@ -266,7 +270,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                     onClick={() => handleToggleScreen("SIGNUP")}
                     className="text-[#4FAE91] hover:text-[#459E84] font-extrabold hover:underline cursor-pointer border-none bg-transparent p-0"
                   >
-                    Create account
+                    {t("demoAccess", "signupToggle")}
                   </button>
                 </span>
               ) : (
@@ -277,7 +281,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                     onClick={() => handleToggleScreen("LOGIN")}
                     className="text-[#4FAE91] hover:text-[#459E84] font-extrabold hover:underline cursor-pointer border-none bg-transparent p-0"
                   >
-                    Sign in
+                    {t("demoAccess", "loginToggle")}
                   </button>
                 </span>
               )}
@@ -293,7 +297,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
           onClick={onContinue}
           className="text-[13px] font-extrabold text-[#4FAE91] hover:text-[#459E84] hover:underline cursor-pointer inline-flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-neutral-100/10 transition-all text-center select-none border-none bg-transparent"
         >
-          <span>Continue as Demo User →</span>
+          <span>{t("demoAccess", "tryDemoBtn")} →</span>
         </button>
         
         <p className="text-[10.5px] text-neutral-400 font-semibold leading-relaxed max-w-[250px] mx-auto select-none text-center">

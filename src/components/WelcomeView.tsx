@@ -1,6 +1,8 @@
 import React from "react";
 import { Logo } from "./Logo";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
+import { LanguageToggle } from "./LanguageToggle";
 
 interface WelcomeViewProps {
   onTryDemo: () => void;
@@ -8,8 +10,15 @@ interface WelcomeViewProps {
 }
 
 export const WelcomeView: React.FC<WelcomeViewProps> = ({ onTryDemo, onUseMyApp }) => {
+  const { t } = useLanguage();
+
   return (
     <div className="flex-1 bg-[#F7F9FA] flex flex-col justify-between scroll-smooth relative overflow-y-auto overflow-x-hidden min-h-full pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+      {/* Language Toggle in top right */}
+      <div className="absolute top-3.5 right-3.5 z-50">
+        <LanguageToggle />
+      </div>
+
       {/* Background ombre blobs only - kept behind all content - pointer-events-none and z-0 */}
       <div className="absolute top-[-5%] left-[-15%] w-[250px] h-[250px] rounded-full bg-[#E5F5EF] blur-[85px] opacity-75 pointer-events-none z-0" />
       <div className="absolute bottom-[3%] right-[-18%] w-[220px] h-[220px] rounded-full bg-[#FFFBE3] blur-[90px] opacity-20 pointer-events-none z-0" />
@@ -25,11 +34,11 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onTryDemo, onUseMyApp 
         {/* Middle area: Title & Subtitle */}
         <div className="flex flex-col items-center text-center space-y-2.5 sm:space-y-3 px-2 w-full my-auto">
           <h2 className="font-heading font-extrabold text-[19px] min-[360px]:text-[21px] sm:text-[23px] text-navy tracking-tight leading-tight">
-            Take 5 minutes to get tax-ready.
+            {t("welcome", "title")}
           </h2>
 
           <p className="text-[11.5px] sm:text-xs text-neutral-500 leading-relaxed font-semibold max-w-[280px]">
-            Scan receipts, organize claims, and prepare your Form BE draft.
+            {t("welcome", "subtitle")}
           </p>
         </div>
 
@@ -39,7 +48,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onTryDemo, onUseMyApp 
           <div className="flex justify-center select-none">
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:py-1 bg-white border border-teal-brand/10 shadow-[0_1px_2px_rgba(0,0,0,0.03)] rounded-full text-[9px] sm:text-[10px] text-teal-brand font-bold tracking-wider uppercase">
               <Sparkles className="w-3.0 h-3.0 text-teal-brand" />
-              Pre-filing MVP Demo v1.0
+              {t("welcome", "badge")}
             </span>
           </div>
 
@@ -68,7 +77,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onTryDemo, onUseMyApp 
                 boxShadow: "0 6px 14px rgba(79, 174, 145, 0.22)",
               }}
             >
-              <span>Try Demo</span>
+              <span>{t("welcome", "tryDemo")}</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </button>
 
@@ -87,11 +96,11 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({ onTryDemo, onUseMyApp 
                 bg-white border border-[#9FD6C2] hover:bg-neutral-50/50
               "
             >
-              <span>Start App</span>
+              <span>{t("welcome", "startApp")}</span>
             </button>
 
             <p className="text-[9.5px] sm:text-[10px] text-neutral-500 font-semibold leading-relaxed text-center max-w-[250px]">
-              Preparation guide only. Final filing is done through MyTax/e-Filing.
+              {t("welcome", "disclaimer")}
             </p>
           </div>
         </div>

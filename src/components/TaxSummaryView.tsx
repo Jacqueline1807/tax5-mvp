@@ -18,6 +18,7 @@ import { Receipt, ClaimCategory, ClaimStatus, CATEGORY_LIMITS, SmartSetupData } 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import JSZip from "jszip";
+import { useLanguage } from "../context/LanguageContext";
 
 interface TaxSummaryViewProps {
   receipts: Receipt[];
@@ -53,6 +54,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
   currentUser,
   onSaveSmartSetup,
 }) => {
+  const { t, language } = useLanguage();
   const [isBEGuideExpanded, setIsBEGuideExpanded] = useState(false);
   const [isAllCategoriesExpanded, setIsAllCategoriesExpanded] = useState(false);
 
@@ -385,7 +387,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
 
   const executeDownload = () => {
     const doc = new jsPDF("p", "mm", "a4");
-    const dateStr = new Date().toLocaleDateString("en-MY", { year: "numeric", month: "long", day: "numeric" });
+    const dateStr = new Date().toLocaleDateString(language === "BM" ? "ms-MY" : "en-MY", { year: "numeric", month: "long", day: "numeric" });
 
     // Header Frame - Clean & Compact
     doc.setDrawColor(180, 185, 190);
@@ -397,12 +399,24 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setTextColor(9, 36, 74); // Navy
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("TAX5 FORM BE-STYLE PREPARATION DRAFT", 19, 17.5);
+    doc.text(
+      language === "BM" 
+        ? "DRAF PERSEDIAAN BERGAYA BORANG BE TAX5" 
+        : "TAX5 FORM BE-STYLE PREPARATION DRAFT", 
+      19, 
+      17.5
+    );
 
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(80, 90, 100);
-    doc.text(`NOT THE OFFICIAL LHDN FORM BE  •  GENERATED ON: ${dateStr}`, 19, 22.5);
+    doc.text(
+      language === "BM"
+        ? `BUKAN BORANG BE LHDN YANG RASMI  •  DIJANA PADA: ${dateStr}`
+        : `NOT THE OFFICIAL LHDN FORM BE  •  GENERATED ON: ${dateStr}`, 
+      19, 
+      22.5
+    );
 
     // Year of Assessment Right Align Accent
     doc.setTextColor(0, 168, 132); // Green Accent
@@ -412,7 +426,11 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(130, 140, 150);
-    doc.text("YEAR OF ASSESSMENT", 158, 22.5);
+    doc.text(
+      language === "BM" ? "TAHUN TAKSIRAN" : "YEAR OF ASSESSMENT", 
+      language === "BM" ? 168 : 158, 
+      22.5
+    );
 
     // Disclaimer Block - Compact
     doc.setFillColor(254, 252, 244); // light warning bg
@@ -423,10 +441,20 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setTextColor(180, 83, 9); // deep amber text
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    doc.text("IMPORTANT NOTICE & DISCLAIMER:", 18, 33.5);
+    doc.text(
+      language === "BM" ? "NOTIS PENTING & PENAFIAN:" : "IMPORTANT NOTICE & DISCLAIMER:", 
+      18, 
+      33.5
+    );
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    doc.text("Tax5 pre-filing draft helper. This is NOT the official LHDN Form BE. Verify all calculations before final e-Filing submission.", 68, 33.5);
+    doc.text(
+      language === "BM"
+        ? "Pembantu draf pra-pemfailan Tax5. Ini BUKAN Borang BE LHDN yang rasmi. Sahkan semua pengiraan sebelum penyerahan e-Filing akhir."
+        : "Tax5 pre-filing draft helper. This is NOT the official LHDN Form BE. Verify all calculations before final e-Filing submission.", 
+      language === "BM" ? 56 : 68, 
+      33.5
+    );
 
     // Profile details resolution
     let realName = smartSetup?.fullName || "";
@@ -501,6 +529,20 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       return "Needs review";
     })();
 
+    const translatedAssessmentType = (() => {
+      if (language === "BM") {
+        if (assessmentType === "Needs review") return "Perlu semakan";
+        if (assessmentType === "Joint assessment in husband’s name") return "Taksiran bersama atas nama suami";
+        if (assessmentType === "Joint assessment in wife’s name") return "Taksiran bersama atas nama isteri";
+        if (assessmentType === "Separate assessment") return "Taksiran berasingan";
+        if (assessmentType === "Spouse has no income / no source / tax-exempt income") return "Pasangan tiada pendapatan / tiada sumber / pendapatan dikecualikan cukai";
+        if (assessmentType === "Self only: single") return "Diri sendiri sahaja: bujang";
+        if (assessmentType === "Self only: divorcee") return "Diri sendiri sahaja: bercerai";
+        if (assessmentType === "Self only: widow / widower") return "Diri sendiri sahaja: balu / duda";
+      }
+      return assessmentType;
+    })();
+
     // Shared Form BE Theme Style with grey label headers and black/dark-grey outline borders
     const formBeThemeStyles: any = {
       theme: "plain",
@@ -512,12 +554,12 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     autoTable(doc, {
       startY: 39,
       margin: { left: 15, right: 15 },
-      head: [[{ content: "BASIC PARTICULARS", colSpan: 4 }]],
+      head: [[{ content: language === "BM" ? "BUTIRAN ASAS" : "BASIC PARTICULARS", colSpan: 4 }]],
       body: [
-        ["1", "Name (As per identification document)", { content: realName, colSpan: 2, styles: { fontStyle: "bold" } }],
-        ["2", "Tax Identification No. (TIN)", { content: smartSetup?.tin || "Not provided", colSpan: 2 }],
-        ["3", "Identification No. / MyKad / Passport", smartSetup?.identificationNumber || "Not provided", "5", `Passport registered with LHDNM: ${smartSetup?.identificationNumber ? "Yes" : "Not provided"}`],
-        ["4", "Email Address", { content: realEmail, colSpan: 2 }, "Year of Assessment", smartSetup?.yearOfAssessment || "YA 2026"]
+        ["1", language === "BM" ? "Nama (Seperti di dalam dokumen pengenalan)" : "Name (As per identification document)", { content: realName, colSpan: 2, styles: { fontStyle: "bold" } }],
+        ["2", language === "BM" ? "No. Pengenalan Cukai (TIN)" : "Tax Identification No. (TIN)", { content: smartSetup?.tin || (language === "BM" ? "Tidak disediakan" : "Not provided"), colSpan: 2 }],
+        ["3", language === "BM" ? "No. Kad Pengenalan / MyKad / Pasport" : "Identification No. / MyKad / Passport", smartSetup?.identificationNumber || (language === "BM" ? "Tidak disediakan" : "Not provided"), "5", language === "BM" ? `Pasport didaftarkan dengan LHDNM: ${smartSetup?.identificationNumber ? "Ya" : "Tidak disediakan"}` : `Passport registered with LHDNM: ${smartSetup?.identificationNumber ? "Yes" : "Not provided"}`],
+        ["4", language === "BM" ? "Alamat E-mel" : "Email Address", { content: realEmail, colSpan: 2 }, language === "BM" ? "Tahun Taksiran" : "Year of Assessment", smartSetup?.yearOfAssessment || "YA 2026"]
       ],
       ...formBeThemeStyles,
       columnStyles: {
@@ -527,15 +569,29 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       }
     } as any);
 
+    const genderVal = smartSetup?.gender === "Male" ? (language === "BM" ? "Lelaki" : "Male") : smartSetup?.gender === "Female" ? (language === "BM" ? "Perempuan" : "Female") : (language === "BM" ? "Tidak disediakan / Tiada spesifikasi" : "Not provided / Unspecified");
+    const maritalVal = (() => {
+      const val = smartSetup?.maritalStatus;
+      if (!val) return language === "BM" ? "Tidak disediakan" : "Not provided";
+      if (language === "BM") {
+        if (val === "Single") return "Bujang";
+        if (val === "Married") return "Kahwin";
+        if (val === "Divorced") return "Bercerai";
+        if (val === "Widowed") return "Balu / Duda";
+      }
+      return val;
+    })();
+    const citizenVal = smartSetup?.salariedBE === "No" ? (language === "BM" ? "Bukan Pemastautin" : "Non-Resident") : (language === "BM" ? "MYS / Individu Pemastautin" : "MYS / Resident Individual");
+
     // C. PART A: PARTICULARS OF INDIVIDUAL
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 3,
       margin: { left: 15, right: 15 },
-      head: [[{ content: "PART A: PARTICULARS OF INDIVIDUAL", colSpan: 5 }]],
+      head: [[{ content: language === "BM" ? "BAHAGIAN A: BUTIRAN PERIBADI INDIVIDU" : "PART A: PARTICULARS OF INDIVIDUAL", colSpan: 5 }]],
       body: [
-        ["A1", "Citizen Status / Resident", smartSetup?.salariedBE === "No" ? "Non-Resident" : "MYS / Resident Individual", "A2", `Gender: ${smartSetup?.gender || "Not provided / Unspecified"}`],
-        ["A3", "Date of Birth", smartSetup?.dateOfBirth || "Not provided", "A4", `Status as at 31-12-2025: ${smartSetup?.maritalStatus || "Not provided"}`],
-        ["A5", "Spouse Situation", smartSetup?.spouseSituation || "Not provided", "A6", `Type of assessment: ${assessmentType}`]
+        ["A1", language === "BM" ? "Status Warganegara / Pemastautin" : "Citizen Status / Resident", citizenVal, "A2", `${language === "BM" ? "Jantina" : "Gender"}: ${genderVal}`],
+        ["A3", language === "BM" ? "Tarikh Lahir" : "Date of Birth", smartSetup?.dateOfBirth || (language === "BM" ? "Tidak disediakan" : "Not provided"), "A4", `${language === "BM" ? "Status pada 31-12-2025" : "Status as at 31-12-2025"}: ${maritalVal}`],
+        ["A5", language === "BM" ? "Situasi Pasangan" : "Spouse Situation", smartSetup?.spouseSituation || (language === "BM" ? "Tidak disediakan" : "Not provided"), "A6", `${language === "BM" ? "Jenis taksiran" : "Type of assessment"}: ${translatedAssessmentType}`]
       ],
       ...formBeThemeStyles,
       columnStyles: {
@@ -551,11 +607,13 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     let eaHeaders = [];
     let eaColStyles: any = {};
     if (employers.length === 0) {
-      eaHeaders = [["Item Code", "Record / Category", "Details / Value"]];
+      eaHeaders = language === "BM"
+        ? [["Kod Item", "Rekod / Kategori", "Butiran / Nilai"]]
+        : [["Item Code", "Record / Category", "Details / Value"]];
       eaBody = [
-        ["B1", "Employment income", "Not provided"],
-        ["B1a", "Number of employments", "0"],
-        ["Status", "EA Form Status", "EA form details not added yet"]
+        ["B1", language === "BM" ? "Pendapatan penggajian" : "Employment income", language === "BM" ? "Tidak disediakan" : "Not provided"],
+        ["B1a", language === "BM" ? "Bilangan penggajian" : "Number of employments", "0"],
+        ["Status", language === "BM" ? "Status Borang EA" : "EA Form Status", language === "BM" ? "Butiran borang EA belum ditambah" : "EA form details not added yet"]
       ];
       eaColStyles = {
         0: { cellWidth: 20, fontStyle: "bold", textColor: [9, 36, 74] },
@@ -563,15 +621,17 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         2: { cellWidth: 100 }
       };
     } else {
-      eaHeaders = [["Ref", "Employer Name", "TIN Ref", "Period of Employment", "Employment Wages", "MTD PCB", "Status"]];
+      eaHeaders = language === "BM"
+        ? [["Ruj", "Nama Majikan", "Ruj TIN", "Tempoh Pekerjaan", "Gaji Pekerjaan", "MTD PCB", "Status"]]
+        : [["Ref", "Employer Name", "TIN Ref", "Period of Employment", "Employment Wages", "MTD PCB", "Status"]];
       eaBody = employers.map((emp, index) => [
         `${(emp.docType || "EA").toUpperCase().replace(" FORM", "")} #${index + 1}`,
         emp.name,
-        emp.tin || "Not provided",
-        emp.period || "Not provided",
+        emp.tin || (language === "BM" ? "Tidak disediakan" : "Not provided"),
+        emp.period || (language === "BM" ? "Tidak disediakan" : "Not provided"),
         `RM${emp.income.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         `RM${emp.mtd.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        `Tax Borne: ${emp.taxBorne}`
+        language === "BM" ? `Cukai Ditanggung: ${emp.taxBorne === "Yes" ? "Ya" : emp.taxBorne === "No" ? "Tidak" : "Kurang Pasti"}` : `Tax Borne: ${emp.taxBorne}`
       ]);
       eaColStyles = {
         0: { cellWidth: 12, fontStyle: "bold", textColor: [9, 36, 74] },
@@ -653,16 +713,16 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     // D. PART BA: COMPUTATION OF CHARGEABLE INCOME PREPARATION
     let baBody = [];
     baBody = [
-      ["B1", "Statutory income from sources of employment in Malaysia", { content: hasIncomeDetails ? `RM${totalIncome.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not provided", styles: { fontStyle: "normal" } }],
-      ["B1a", "Number of employments", { content: hasIncomeDetails ? String(numEmployments) : "No records", styles: { fontStyle: "normal" } }],
-      ["B13", "Total Relief Transfer (Transfer from Item G23)", { content: `RM${totalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: "bold" } }],
-      ["B14", "Chargeable Income Draft Estimate (B1 minus B13 subtotal)", { content: hasIncomeDetails ? `RM${calculatedChargeableIncome.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not calculated", styles: { fontStyle: "bold" } }]
+      ["B1", language === "BM" ? "Pendapatan berkanun daripada sumber penggajian di Malaysia" : "Statutory income from sources of employment in Malaysia", { content: hasIncomeDetails ? `RM${totalIncome.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : (language === "BM" ? "Tidak disediakan" : "Not provided"), styles: { fontStyle: "normal" } }],
+      ["B1a", language === "BM" ? "Bilangan penggajian" : "Number of employments", { content: hasIncomeDetails ? String(numEmployments) : (language === "BM" ? "Tiada rekod" : "No records"), styles: { fontStyle: "normal" } }],
+      ["B13", language === "BM" ? "Jumlah Pemindahan Pelepasan (Pindahan dari Item G23)" : "Total Relief Transfer (Transfer from Item G23)", { content: `RM${totalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: "bold" } }],
+      ["B14", language === "BM" ? "Anggaran Deraf Pendapatan Bercukai (B1 tolak subjumlah B13)" : "Chargeable Income Draft Estimate (B1 minus B13 subtotal)", { content: hasIncomeDetails ? `RM${calculatedChargeableIncome.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : (language === "BM" ? "Tidak dikira" : "Not calculated"), styles: { fontStyle: "bold" } }]
     ];
 
     autoTable(doc, {
       startY: currentY,
       margin: { left: 15, right: 15 },
-      head: [[{ content: "PART BA: COMPUTATION of tax PREPARATION", colSpan: 3 }]],
+      head: [[{ content: language === "BM" ? "BAHAGIAN BA: PENGIRAAN PERSEDIAAN CUKAI" : "PART BA: COMPUTATION of tax PREPARATION", colSpan: 3 }]],
       body: baBody,
       ...formBeThemeStyles,
       columnStyles: {
@@ -673,15 +733,34 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     } as any);
 
     // E. PART BC: TAX PAYABLE / REPAYABLE PREPARATION
+    const bcStatusVal = (() => {
+      if (!hasIncomeDetails) {
+        return language === "BM" 
+          ? "Tidak dikira - masukkan butiran akhir dalam LHDN/MyTax" 
+          : "Not calculated - enter final details in LHDN/MyTax";
+      }
+      if (netDiff < 0) {
+        return language === "BM"
+          ? `Boleh Dituntut (Bayaran Balik): RM${Math.abs(netDiff).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : `Repayable (Refund): RM${Math.abs(netDiff).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+      if (netDiff > 0) {
+        return language === "BM"
+          ? `Anggaran Baki Perlu Dibayar: RM${netDiff.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : `Estimated Balance Payable: RM${netDiff.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+      return language === "BM" ? "Baki Sifar (Tiada cukai kena dibayar)" : "Zero Balance (No tax due)";
+    })();
+
     const bcBody = [
-      ["B27", "Monthly Tax Deduction (MTD / PCB Deducted for YA 2025)", { content: hasIncomeDetails ? `RM${totalMtd.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not provided", styles: { fontStyle: "normal" } }],
-      ["B28", "Tax Payable / Repayables Estimation Status", { content: hasIncomeDetails ? (netDiff < 0 ? `Repayable (Refund): RM${Math.abs(netDiff).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : netDiff > 0 ? `Estimated Balance Payable: RM${netDiff.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Zero Balance (No tax due)") : "Not calculated - enter final details in LHDN/MyTax", styles: { fontStyle: "bold" } }]
+      ["B27", language === "BM" ? "Potongan Cukai Bulanan (MTD / PCB Dipotong bagi YA 2025)" : "Monthly Tax Deduction (MTD / PCB Deducted for YA 2025)", { content: hasIncomeDetails ? `RM${totalMtd.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : (language === "BM" ? "Tidak disediakan" : "Not provided"), styles: { fontStyle: "normal" } }],
+      ["B28", language === "BM" ? "Status Anggaran Cukai Perlu Dibayar / Dibayar Balik" : "Tax Payable / Repayables Estimation Status", { content: bcStatusVal, styles: { fontStyle: "bold" } }]
     ];
 
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 3,
       margin: { left: 15, right: 15 },
-      head: [[{ content: "PART BC: EST. DEDUCTION & TAX PAYABLE PREPARATION", colSpan: 3 }]],
+      head: [[{ content: language === "BM" ? "BAHAGIAN BC: STATUS ANGGARAN CUKAI PERSEDIAAN" : "PART BC: EST. DEDUCTION & TAX PAYABLE PREPARATION", colSpan: 3 }]],
       body: bcBody,
       ...formBeThemeStyles,
       columnStyles: {
@@ -701,12 +780,18 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setTextColor(9, 36, 74);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    doc.text("TOTAL RELIEF COMPOSITION NOTE:", 18, yNote + 3.5);
+    doc.text(
+      language === "BM" ? "NOTA KOMPOSISI JUMLAH PELEPASAN:" : "TOTAL RELIEF COMPOSITION NOTE:", 
+      18, 
+      yNote + 3.5
+    );
 
     doc.setTextColor(80, 90, 100);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    const noteText = `Note: Tax5 receipt claim total is RM${totalCappedClaim.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Estimated Form BE total relief is RM${totalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} because G1 individual relief of RM9,000.00 is included automatically. Profile deductions such as EPF and SOCSO/EIS are RM${(epfCapped + totalG20).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} and SSPN is RM${sspnCapped.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
+    const noteText = language === "BM"
+      ? `Nota: Jumlah tuntutan resit Tax5 ialah RM${totalCappedClaim.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Anggaran jumlah pelepasan Borang BE ialah RM${totalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kerana pelepasan individu G1 bernilai RM9,000.00 disertakan secara automatik. Potongan profil seperti KWSP dan PERKESO(SOCSO)/SIP(EIS) ialah RM${(epfCapped + totalG20).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} dan SSPN ialah RM${sspnCapped.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`
+      : `Note: Tax5 receipt claim total is RM${totalCappedClaim.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Estimated Form BE total relief is RM${totalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} because G1 individual relief of RM9,000.00 is included automatically. Profile deductions such as EPF and SOCSO/EIS are RM${(epfCapped + totalG20).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} and SSPN is RM${sspnCapped.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
     const noteLines = doc.splitTextToSize(noteText, 172);
     doc.text(noteLines, 18, yNote + 6.8);
 
@@ -718,7 +803,13 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setTextColor(9, 36, 74);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("PART G: RELIEF & MAPPED CLAIM CATEGORIES (DECLARED TAX RELIEFS)", 15, currentY);
+    doc.text(
+      language === "BM"
+        ? "BAHAGIAN G: PELEPASAN & KATEGORI TUNTUTAN TERPETA (PELEPASAN CUKAI DIISYTIHARKAN)"
+        : "PART G: RELIEF & MAPPED CLAIM CATEGORIES (DECLARED TAX RELIEFS)", 
+      15, 
+      currentY
+    );
     doc.setDrawColor(180, 185, 190);
     doc.line(15, currentY + 2, 195, currentY + 2);
     currentY += 5;
@@ -726,17 +817,98 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     const formatRM = (val: number) => `RM${val.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     const reliefRows = [
-      ["G1", "Individual Relief (Automatic)", "RM9,000.00", "RM9,000.00", "RM9,000.00", "Automatic personal relief included for Form BE-style estimate."],
-      ["G5", "Education", formatRM(categoryTotals[ClaimCategory.Education] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Education].limit), formatRM(cappedCategoryTotals[ClaimCategory.Education] || 0), "Self study courses and degrees study."],
-      ...(hasSpouseRelief ? [["G5 Sp", "Spouse Relief (no income source)", "RM4,000.00", "RM4,000.00", "RM4,000.00", "Claim for spouse with no source of income"]] : []),
-      ["G6/G7", "Medical", formatRM(categoryTotals[ClaimCategory.Medical] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Medical].limit), formatRM(cappedCategoryTotals[ClaimCategory.Medical] || 0), "Self/spouse/children medical or vaccines."],
-      ["G9", "Lifestyle", formatRM(categoryTotals[ClaimCategory.Lifestyle] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Lifestyle].limit), formatRM(cappedCategoryTotals[ClaimCategory.Lifestyle] || 0), "Books, tech, internet claim"],
-      ["G10", "Sports", formatRM(categoryTotals[ClaimCategory.Sports] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Sports].limit), formatRM(cappedCategoryTotals[ClaimCategory.Sports] || 0), "Sports equipment, gym fees"],
-      ["G13", "SSPN Net Savings Contribution", formatRM(sspnReceiptAmount), "RM8,000.00", formatRM(sspnCapped), "Net annual savings statement"],
-      ["G17", "EPF Contributions", formatRM(epfVal), "RM4,000.00", formatRM(epfCapped), epfVal > 4000 ? "Capped at max RM4,000" : "EPF contribution applied"],
-      ["G20", "SOCSO / EIS", formatRM(socsoVal + eisVal), "RM350.00", formatRM(totalG20), "Social security contributions"],
-      ["Other", "Other Claims", formatRM(categoryTotals[ClaimCategory.Other] || 0), formatRM(CATEGORY_LIMITS[ClaimCategory.Other].limit), formatRM(cappedCategoryTotals[ClaimCategory.Other] || 0), "Other tax receipts subtotal"],
-      ["G23", "Total Relief (Transfer to B13)", { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, "-", { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, "Sum of G1 to G22 claims transferred directly to B13."]
+      [
+        "G1", 
+        language === "BM" ? "Pelepasan Individu (Automatik)" : "Individual Relief (Automatic)", 
+        "RM9,000.00", 
+        "RM9,000.00", 
+        "RM9,000.00", 
+        language === "BM" ? "Pelepasan peribadi automatik disertakan untuk anggaran gaya Borang BE." : "Automatic personal relief included for Form BE-style estimate."
+      ],
+      [
+        "G5", 
+        language === "BM" ? "Pendidikan" : "Education", 
+        formatRM(categoryTotals[ClaimCategory.Education] || 0), 
+        formatRM(CATEGORY_LIMITS[ClaimCategory.Education].limit), 
+        formatRM(cappedCategoryTotals[ClaimCategory.Education] || 0), 
+        language === "BM" ? "Kursus pengajian sendiri dan pengajian ijazah." : "Self study courses and degrees study."
+      ],
+      ...(hasSpouseRelief ? [
+        [
+          "G5 Sp", 
+          language === "BM" ? "Pelepasan Pasangan (tiada sumber pendapatan)" : "Spouse Relief (no income source)", 
+          "RM4,000.00", 
+          "RM4,000.00", 
+          "RM4,000.00", 
+          language === "BM" ? "Tuntutan untuk pasangan tanpa sumber pendapatan" : "Claim for spouse with no source of income"
+        ]
+      ] : []),
+      [
+        "G6/G7", 
+        language === "BM" ? "Perubatan" : "Medical", 
+        formatRM(categoryTotals[ClaimCategory.Medical] || 0), 
+        formatRM(CATEGORY_LIMITS[ClaimCategory.Medical].limit), 
+        formatRM(cappedCategoryTotals[ClaimCategory.Medical] || 0), 
+        language === "BM" ? "Perubatan atau vaksin diri/pasangan/anak." : "Self/spouse/children medical or vaccines."
+      ],
+      [
+        "G9", 
+        language === "BM" ? "Gaya Hidup" : "Lifestyle", 
+        formatRM(categoryTotals[ClaimCategory.Lifestyle] || 0), 
+        formatRM(CATEGORY_LIMITS[ClaimCategory.Lifestyle].limit), 
+        formatRM(cappedCategoryTotals[ClaimCategory.Lifestyle] || 0), 
+        language === "BM" ? "Tuntutan buku, teknologi, internet" : "Books, tech, internet claim"
+      ],
+      [
+        "G10", 
+        language === "BM" ? "Sukan" : "Sports", 
+        formatRM(categoryTotals[ClaimCategory.Sports] || 0), 
+        formatRM(CATEGORY_LIMITS[ClaimCategory.Sports].limit), 
+        formatRM(cappedCategoryTotals[ClaimCategory.Sports] || 0), 
+        language === "BM" ? "Peralatan sukan, yuran gim" : "Sports equipment, gym fees"
+      ],
+      [
+        "G13", 
+        language === "BM" ? "Caruman Simpanan Bersih SSPN" : "SSPN Net Savings Contribution", 
+        formatRM(sspnReceiptAmount), 
+        "RM8,000.00", 
+        formatRM(sspnCapped), 
+        language === "BM" ? "Penyata simpanan tahunan bersih" : "Net annual savings statement"
+      ],
+      [
+        "G17", 
+        language === "BM" ? "Caruman KWSP" : "EPF Contributions", 
+        formatRM(epfVal), 
+        "RM4,000.00", 
+        formatRM(epfCapped), 
+        epfVal > 4000 
+          ? (language === "BM" ? "Dihadkan pada maks RM4,000" : "Capped at max RM4,000") 
+          : (language === "BM" ? "Caruman KWSP digunakan" : "EPF contribution applied")
+      ],
+      [
+        "G20", 
+        "SOCSO / EIS", 
+        formatRM(socsoVal + eisVal), 
+        "RM350.00", 
+        formatRM(totalG20), 
+        language === "BM" ? "Caruman keselamatan sosial" : "Social security contributions"
+      ],
+      [
+        "Other", 
+        language === "BM" ? "Tuntutan Lain" : "Other Claims", 
+        formatRM(categoryTotals[ClaimCategory.Other] || 0), 
+        formatRM(CATEGORY_LIMITS[ClaimCategory.Other].limit), 
+        formatRM(cappedCategoryTotals[ClaimCategory.Other] || 0), 
+        language === "BM" ? "Subjumlah resit cukai lain" : "Other tax receipts subtotal"
+      ],
+      [
+        "G23", 
+        language === "BM" ? "Jumlah Pelepasan (Pindah ke B13)" : "Total Relief (Transfer to B13)", 
+        { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, 
+        "-", 
+        { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, 
+        language === "BM" ? "Jumlah tuntutan G1 hingga G22 dipindahkan terus ke B13." : "Sum of G1 to G22 claims transferred directly to B13."
+      ]
     ];
 
     const formBePartGThemeStyles: any = {
@@ -763,7 +935,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     autoTable(doc, {
       startY: currentY,
       margin: { left: 15, right: 15 },
-      head: [["Item", "Form BE Relief Category Name / Details", "Declared Spent", "Max Limit", "Claimed (Capped)", "Status Note"]],
+      head: language === "BM"
+        ? [["Item", "Nama Kategori Pelepasan Borang BE / Butiran", "Perbelanjaan Diisytiharkan", "Had Maksimum", "Dituntut (Dihadkan)", "Nota Status"]]
+        : [["Item", "Form BE Relief Category Name / Details", "Declared Spent", "Max Limit", "Claimed (Capped)", "Status Note"]],
       body: reliefRows,
       ...formBePartGThemeStyles,
       columnStyles: {
@@ -782,7 +956,11 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setTextColor(9, 36, 74);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("RECEIPT EVIDENCE ATTACHMENT SUMMARY", 15, currentY);
+    doc.text(
+      language === "BM" ? "RINGKASAN LAMPIRAN BUKTI RESIT" : "RECEIPT EVIDENCE ATTACHMENT SUMMARY", 
+      15, 
+      currentY
+    );
     doc.line(15, currentY + 2, 195, currentY + 2);
     currentY += 5;
 
@@ -790,7 +968,11 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       doc.setFont("helvetica", "italic");
       doc.setTextColor(115, 115, 115);
       doc.setFontSize(8.5);
-      doc.text("No saved receipts yet.", 15, currentY + 4);
+      doc.text(
+        language === "BM" ? "Tiada resit disimpan lagi." : "No saved receipts yet.", 
+        15, 
+        currentY + 4
+      );
       currentY += 10;
     } else {
       const receiptsBody = receipts.map((r, index) => {
@@ -818,7 +1000,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       autoTable(doc, {
         startY: currentY,
         margin: { left: 15, right: 15 },
-        head: [["No.", "Merchant", "Date", "Amount", "BE Item", "Status", "Notes"]],
+        head: language === "BM"
+          ? [["No.", "Peniaga", "Tarikh", "Jumlah", "Item BE", "Status", "Nota"]]
+          : [["No.", "Merchant", "Date", "Amount", "BE Item", "Status", "Notes"]],
         headStyles: { fillColor: [9, 36, 74], fontStyle: "bold" },
         body: receiptsBody,
         theme: "striped",
@@ -845,7 +1029,11 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setTextColor(9, 36, 74);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("NEEDS REVIEW BEFORE FILING", 15, currentY);
+    doc.text(
+      language === "BM" ? "PERLU SEMAKAN SEBELUM MEMFAILKAN" : "NEEDS REVIEW BEFORE FILING", 
+      15, 
+      currentY
+    );
     doc.line(15, currentY + 2, 195, currentY + 2);
     currentY += 5;
 
@@ -853,7 +1041,13 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       doc.setFont("helvetica", "italic");
       doc.setTextColor(115, 115, 115);
       doc.setFontSize(8.5);
-      doc.text("No receipts currently marked as Needs Review.", 15, currentY + 4);
+      doc.text(
+        language === "BM" 
+          ? "Tiada resit ditandakan Perlu Semak pada masa ini." 
+          : "No receipts currently marked as Needs Review.", 
+        15, 
+        currentY + 4
+      );
       currentY += 10;
     } else {
       const checkAgainBody = checkAgainReceipts.map((r, index) => [
@@ -862,13 +1056,15 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         r.date || "N/A",
         `RM${r.amount.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         r.category,
-        r.notes || "Please check eligibility and verification before filing."
+        r.notes || (language === "BM" ? "Sila semak kelayakan dan pengesahan sebelum memfailkan." : "Please check eligibility and verification before filing.")
       ]);
 
       autoTable(doc, {
         startY: currentY,
         margin: { left: 15, right: 15 },
-        head: [["No.", "Merchant", "Date", "Amount", "Category", "Unresolved Review Notes"]],
+        head: language === "BM"
+          ? [["No.", "Peniaga", "Tarikh", "Jumlah", "Kategori", "Nota Semakan Belum Selesai"]]
+          : [["No.", "Merchant", "Date", "Amount", "Category", "Unresolved Review Notes"]],
         body: checkAgainBody,
         theme: "striped",
         styles: { fontSize: 7, cellPadding: 1.2, font: "helvetica" },
@@ -894,7 +1090,11 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setTextColor(9, 36, 74);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("NOT INCLUDED / EXCLUDED ITEMS", 15, currentY);
+    doc.text(
+      language === "BM" ? "ITEM TIDAK DISERTAKAN / DIKECUALIKAN" : "NOT INCLUDED / EXCLUDED ITEMS", 
+      15, 
+      currentY
+    );
     doc.line(15, currentY + 2, 195, currentY + 2);
     currentY += 5;
 
@@ -902,7 +1102,11 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       doc.setFont("helvetica", "italic");
       doc.setTextColor(115, 115, 115);
       doc.setFontSize(8.5);
-      doc.text("No receipts currently excluded.", 15, currentY + 4);
+      doc.text(
+        language === "BM" ? "Tiada item dikecualikan pada masa ini." : "No receipts currently excluded.", 
+        15, 
+        currentY + 4
+      );
       currentY += 10;
     } else {
       const nonEligibleBody = nonClaimableReceipts.map((r, index) => [
@@ -911,13 +1115,15 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         r.date || "N/A",
         `RM${r.amount.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         r.category,
-        r.notes || "Receipt excluded from draft eligibility"
+        r.notes || (language === "BM" ? "Resit dikecualikan daripada draf kelayakan" : "Receipt excluded from draft eligibility")
       ]);
 
       autoTable(doc, {
         startY: currentY,
         margin: { left: 15, right: 15 },
-        head: [["No.", "Merchant", "Date", "Amount", "Category", "Excluded Reason / Notes"]],
+        head: language === "BM"
+          ? [["No.", "Peniaga", "Tarikh", "Jumlah", "Kategori", "Sebab Dikecualikan / Nota"]]
+          : [["No.", "Merchant", "Date", "Amount", "Category", "Excluded Reason / Notes"]],
         body: nonEligibleBody,
         theme: "striped",
         styles: { fontSize: 7, cellPadding: 1.2, font: "helvetica" },
@@ -935,7 +1141,18 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     }
 
     // J. RECORD KEEPING COMPLIANCE REMINDER
-    if (currentY > 245) { // Can accommodate higher threshold since box is thin
+    const reminderTitle = language === "BM" ? "PERINGATAN PENYIMPANAN 7 TAHUN" : "7-YEAR RECORD KEEPING REMINDER";
+    const reminderDesc = language === "BM"
+      ? "Simpan resit, helaian kerja, dan dokumen sokongan selama tujuh (7) tahun untuk tujuan rujukan atau pemeriksaan audit pada masa hadapan."
+      : "Keep receipts, working sheets, and supporting documents for seven (7) years for future reference or audit inspection.";
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    const wrappedDescLines: string[] = doc.splitTextToSize(reminderDesc, 174);
+
+    const boxHeight = 11 + (wrappedDescLines.length * 4);
+
+    if (currentY > (280 - boxHeight)) {
       doc.addPage();
       currentY = 20;
     }
@@ -943,17 +1160,22 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     doc.setFillColor(245, 246, 248);
     doc.setDrawColor(200, 202, 205);
     doc.setLineWidth(0.3);
-    doc.rect(15, currentY, 180, 8, "FD");
+    doc.rect(15, currentY, 180, boxHeight, "FD");
 
     doc.setTextColor(9, 36, 74);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.text("7-YEAR KEEPING REMINDER:", 18, currentY + 5);
+    doc.setFontSize(7.5);
+    doc.text(reminderTitle, 18, currentY + 5);
 
     doc.setTextColor(80, 90, 100);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
-    doc.text("Keep receipts, working sheets, and supporting documents for seven years for future reference/audit inspection.", 60, currentY + 5);
+
+    let textY = currentY + 10;
+    wrappedDescLines.forEach((line: string) => {
+      doc.text(line, 18, textY);
+      textY += 4;
+    });
 
     // Apply Page Numbers, dynamic titles and header lines across all pages
     const totalPages = doc.getNumberOfPages();
@@ -968,18 +1190,42 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       doc.setTextColor(130, 140, 150);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
-      doc.text("TAX5 - SUMMARY PREPARATION GUIDE SHEET FOR LHDN FORM BE e-FILING", 15, 8);
+      doc.text(
+        language === "BM" 
+          ? "TAX5 - HELAIAN PANDUAN PERSEDIAAN RINGKASAN UNTUK e-FILING BORANG BE LHDN" 
+          : "TAX5 - SUMMARY PREPARATION GUIDE SHEET FOR LHDN FORM BE e-FILING", 
+        15, 
+        8
+      );
 
       // Decent Footer line decoration
       doc.line(15, 285, 195, 285);
 
-      doc.text("Generated by Tax5", 15, 289);
-      doc.text("Final eligibility must be verified with LHDN/MyTax.", 60, 289);
-      doc.text(`Page ${i} of ${totalPages}`, 180, 289);
+      doc.text(
+        language === "BM" ? "Dijana oleh Tax5" : "Generated by Tax5", 
+        15, 
+        289
+      );
+      doc.text(
+        language === "BM" 
+          ? "Kelayakan akhir mesti disahkan dengan LHDN/MyTax." 
+          : "Final eligibility must be verified with LHDN/MyTax.", 
+        60, 
+        289
+      );
+      doc.text(
+        language === "BM" ? `Halaman ${i} daripada ${totalPages}` : `Page ${i} of ${totalPages}`, 
+        180, 
+        289
+      );
     }
 
     // Output and save
-    doc.save("Tax5_Form_BE_Style_Draft_Summary_YA2026.pdf");
+    doc.save(
+      language === "BM"
+        ? "Tax5_Draf_Ringkasan_Gaya_Borang_BE_YA2026.pdf"
+        : "Tax5_Form_BE_Style_Draft_Summary_YA2026.pdf"
+    );
   };
 
   if (activeView === "employment") {
@@ -1050,7 +1296,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         <div className="bg-white border border-neutral-200/55 rounded-2xl p-5 shadow-3xs z-10 relative text-left space-y-4">
           <div className="flex items-center justify-between gap-1.5 flex-wrap">
             <h3 className="font-extrabold text-navy text-xs font-heading uppercase tracking-wider">
-              Enter EA / EC Income Details
+              {language === "BM" ? "Masukkan Butiran Pendapatan EA / EC" : "Enter EA / EC Income Details"}
             </h3>
             {currentUser?.isDemo && (
               <button
@@ -1058,7 +1304,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                 onClick={handleLoadDemoDetails}
                 className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100/70 border border-amber-300 text-amber-700 rounded-lg text-[9.5px] font-black cursor-pointer transition-all shadow-2xs flex items-center gap-1 shrink-0"
               >
-                Use demo EA/EC details
+                {language === "BM" ? "Gunakan maklumat demo EA/EC" : "Use demo EA/EC details"}
               </button>
             )}
           </div>
@@ -1066,7 +1312,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
           <form onSubmit={handleSaveEmployer} className="space-y-4">
             {/* Document Type Selector Fields */}
             <div className="space-y-1.5">
-              <label className="block font-bold text-neutral-400 text-[10px] uppercase">Document Type</label>
+              <label className="block font-bold text-neutral-400 text-[10px] uppercase">{language === "BM" ? "Jenis Dokumen" : "Document Type"}</label>
               <div className="flex gap-2">
                 {(["EA form", "EC form"] as const).map((type) => (
                   <button
@@ -1079,7 +1325,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                         : "bg-white text-neutral-600 border-neutral-250 hover:bg-neutral-50"
                     }`}
                   >
-                    {type === "EA form" ? "EA Form (Private Sector)" : "EC Form (Public Sector)"}
+                    {type === "EA form" ? (language === "BM" ? "Borang EA (Sektor Swasta)" : "EA Form (Private Sector)") : (language === "BM" ? "Borang EC (Sektor Awam)" : "EC Form (Public Sector)")}
                   </button>
                 ))}
               </div>
@@ -1087,7 +1333,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
 
             {/* Employer Name */}
             <div>
-              <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">Employer / Company Name</label>
+              <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">
+                {language === "BM" ? "Nama Majikan / Syarikat" : "Employer / Company Name"}
+              </label>
               <input
                 type="text"
                 required
@@ -1100,7 +1348,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
 
             {/* Employment Period Field */}
             <div>
-              <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">Employment Period</label>
+              <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">{language === "BM" ? "Tempoh Pekerjaan" : "Employment Period"}</label>
               <input
                 type="text"
                 required
@@ -1114,7 +1362,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
             {/* Annual Income & MTD / PCB Paid side-by-side */}
             <div className="grid grid-cols-2 gap-3.5">
               <div>
-                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">Annual Income (RM)</label>
+                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">{language === "BM" ? "Pendapatan Tahunan (RM)" : "Annual Income (RM)"}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1126,7 +1374,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                 />
               </div>
               <div>
-                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">MTD / PCB Paid (RM)</label>
+                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">{language === "BM" ? "PCB Dibayar (RM)" : "MTD / PCB Paid (RM)"}</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1142,22 +1390,22 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
             {/* EPF & SOCSO side-by-side */}
             <div className="grid grid-cols-2 gap-3.5">
               <div>
-                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">EPF Contribution (RM)</label>
+                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">{language === "BM" ? "Caruman KWSP (RM)" : "EPF Contribution (RM)"}</label>
                 <input
                   type="number"
                   step="0.01"
-                  placeholder="0.00 (Optional)"
+                  placeholder={language === "BM" ? "0.00 (Pilihan)" : "0.00 (Optional)"}
                   className="w-full h-9.5 px-3 bg-neutral-50 border border-neutral-250 rounded-xl text-xs font-semibold text-neutral-700 font-mono outline-none focus:bg-white focus:ring-1 focus:ring-teal-brand/35 transition-all"
                   value={newEmpEpf}
                   onChange={(e) => setNewEmpEpf(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">SOCSO Contribution (RM)</label>
+                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">{language === "BM" ? "Caruman PERKESO (RM)" : "SOCSO Contribution (RM)"}</label>
                 <input
                   type="number"
                   step="0.01"
-                  placeholder="0.00 (Optional)"
+                  placeholder={language === "BM" ? "0.00 (Pilihan)" : "0.00 (Optional)"}
                   className="w-full h-9.5 px-3 bg-neutral-50 border border-neutral-250 rounded-xl text-xs font-semibold text-neutral-700 font-mono outline-none focus:bg-white focus:ring-1 focus:ring-teal-brand/35 transition-all"
                   value={newEmpSocso}
                   onChange={(e) => setNewEmpSocso(e.target.value)}
@@ -1168,18 +1416,18 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
             {/* EIS & Tax Borne by Employer side-by-side */}
             <div className="grid grid-cols-2 gap-3.5">
               <div>
-                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">EIS Contribution (RM)</label>
+                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">{language === "BM" ? "Caruman SIP (RM)" : "EIS Contribution (RM)"}</label>
                 <input
                   type="number"
                   step="0.01"
-                  placeholder="0.00 (Optional)"
+                  placeholder={language === "BM" ? "0.00 (Pilihan)" : "0.00 (Optional)"}
                   className="w-full h-9.5 px-3 bg-neutral-50 border border-neutral-250 rounded-xl text-xs font-semibold text-neutral-700 font-mono outline-none focus:bg-white focus:ring-1 focus:ring-teal-brand/35 transition-all"
                   value={newEmpEis}
                   onChange={(e) => setNewEmpEis(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">Tax Borne by Employer?</label>
+                <label className="block font-bold text-neutral-450 text-[10px] uppercase mb-1">{language === "BM" ? "Cukai Ditanggung oleh Majikan?" : "Tax Borne by Employer?"}</label>
                 <div className="flex gap-1">
                   {(["Yes", "No", "Not sure"] as const).map((choice) => (
                     <button
@@ -1192,7 +1440,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                           : "bg-white text-[#526070] border-neutral-250 hover:bg-neutral-50"
                       }`}
                     >
-                      {choice}
+                      {choice === "Yes" ? (language === "BM" ? "Ya" : "Yes") : choice === "No" ? (language === "BM" ? "Tidak" : "No") : (language === "BM" ? "Tidak Pasti" : "Not sure")}
                     </button>
                   ))}
                 </div>
@@ -1202,22 +1450,22 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
             {/* Optional upload/attach ref only container */}
             <div className="p-3.5 bg-neutral-50 border-2 border-dashed border-neutral-250 rounded-xl text-center space-y-1.5 relative hover:border-teal-brand/35 transition-all">
               <span className="block text-[11px] font-semibold text-neutral-600">
-                Optional: Attach EA/EC Form PDF/Image for Reference
+                {language === "BM" ? "Pilihan: Lampirkan Borang EA/EC PDF/Imej untuk Rujukan" : "Optional: Attach EA/EC Form PDF/Image for Reference"}
               </span>
               <p className="text-[9.5px] text-neutral-400 font-semibold leading-none">
-                File is stored locally only to assist your review process. Size limit 10MB.
+                {language === "BM" ? "Fail disimpan secara tempatan sahaja untuk rujukan semakan. Had saiz 10MB." : "File is stored locally only to assist your review process. Size limit 10MB."}
               </p>
               
               <div className="pt-1 select-none">
                 {attachedFile ? (
                   <div className="bg-[#EAFDF5] border border-teal-500/10 p-1.5 px-3 rounded-lg flex items-center justify-between text-[11px] font-bold text-[#009170] mx-auto max-w-[280px]">
-                    <span className="truncate pr-2">📎 Attached: {attachedFile}</span>
+                    <span className="truncate pr-2">{language === "BM" ? "📎 Dilampirkan: " : "📎 Attached: "}{attachedFile}</span>
                     <button
                       type="button"
                       onClick={() => setAttachedFile(null)}
                       className="text-[9.5px] font-black text-red-500 hover:underline cursor-pointer"
                     >
-                      Remove
+                      {language === "BM" ? "Padam" : "Remove"}
                     </button>
                   </div>
                 ) : (
@@ -1229,7 +1477,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                     }}
                     className="py-1 px-3 bg-white hover:bg-neutral-50 border border-neutral-250 text-[#09244A] rounded-lg text-[10px] font-black cursor-pointer shadow-5xs active:scale-[0.98] transition-all"
                   >
-                    Select reference file...
+                    {language === "BM" ? "Pilih fail rujukan..." : "Select reference file..."}
                   </button>
                 )}
               </div>
@@ -1241,7 +1489,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                 type="submit"
                 className="flex-1 py-2 bg-teal-brand hover:bg-[#009473] text-white text-[11px] font-black rounded-xl cursor-pointer text-center shadow-3xs"
               >
-                Save Employer Record
+                {language === "BM" ? "Simpan Rekod Majikan" : "Save Employer Record"}
               </button>
             </div>
           </form>
@@ -1252,7 +1500,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
           onClick={() => setActiveView("summary")}
           className="w-full py-2.5 bg-[#0B2545] hover:bg-[#081C35] text-white font-black text-[11.5px] rounded-xl cursor-pointer shadow-3xs transition-all text-center z-10 relative"
         >
-          Check and Return to Tax Summary
+          {language === "BM" ? "Semak dan Kembali ke Ringkasan Cukai" : "Check and Return to Tax Summary"}
         </button>
       </div>
     );
@@ -1268,8 +1516,8 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         <div className="flex items-center justify-between pb-1 border-b border-neutral-100 z-10 relative">
           <div className="flex items-center gap-1.5 animate-fadeIn">
             <div>
-              <h2 className="text-xl font-bold font-heading text-navy">Tax Summary</h2>
-              <p className="text-xs text-neutral-500 font-semibold leading-tight mt-0.5">Form BE-style Draft Summary</p>
+              <h2 className="text-xl font-bold font-heading text-navy">{language === "BM" ? "Ringkasan Cukai" : "Tax Summary"}</h2>
+              <p className="text-xs text-neutral-500 font-semibold leading-tight mt-0.5">{language === "BM" ? "Draf Ringkasan gaya Borang BE" : "Form BE-style Draft Summary"}</p>
             </div>
           </div>
         </div>
@@ -1279,7 +1527,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-[9.5px] font-bold text-neutral-400 uppercase tracking-wider block">
-              Estimated claim total
+              {language === "BM" ? "Jumlah tuntutan dianggarkan" : "Estimated claim total"}
             </span>
             <div className="flex items-center gap-1.5 mt-1">
               <div className="flex items-baseline gap-0.5">
@@ -1293,13 +1541,13 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
               </div>
               <span className="inline-flex items-center gap-1 bg-[#EAFDF5] text-[#166534] border border-[#BBF7D0]/30 text-[9px] font-bold px-2 py-0.5 rounded-full shadow-[0_1px_2px_rgba(0,168,132,0.01)] select-none">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] shrink-0"></span>
-                <span>Claimable</span>
+                <span>{language === "BM" ? "Boleh Dituntut" : "Claimable"}</span>
               </span>
             </div>
           </div>
           <div className="text-right">
             <span className="text-[9.5px] font-bold text-neutral-400 uppercase tracking-wider block">
-              Saved receipts
+              {language === "BM" ? "Resit disimpan" : "Saved receipts"}
             </span>
             <div className="flex items-center justify-end gap-1 mt-1 text-navy font-extrabold text-lg">
               <FileCheck className="w-4 h-4 text-teal-brand shrink-0" />
@@ -1311,14 +1559,14 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         {/* Setup status sub-card */}
         <div className="flex items-center justify-between px-3 py-2 bg-[#F5FAF7] border border-[#00A884]/10 rounded-xl">
           <span className="text-[11.5px] font-bold text-[#5F6B7A]">
-            Setup Status
+            {language === "BM" ? "Status Tetapan" : "Setup Status"}
           </span>
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
             isSetupComplete 
               ? "bg-[#EAFDF5] text-[#00A884] border border-[#00A884]/20" 
               : "bg-[#FFF8E8] text-[#D97706] border border-amber-500/15"
           }`}>
-            {isSetupComplete ? "Setup Complete" : "Setup Incomplete"}
+            {isSetupComplete ? (language === "BM" ? "Tetapan Selesai" : "Setup Complete") : (language === "BM" ? "Tetapan Belum Selesai" : "Setup Incomplete")}
           </span>
         </div>
 
@@ -1328,13 +1576,13 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
             onClick={handleDownloadAllReceiptImages}
             className="h-9 px-3.5 rounded-xl text-[10px] font-black tracking-wide border border-neutral-250 bg-white text-[#09244A] hover:bg-neutral-50 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
           >
-            <span>Download Receipts</span>
+            <span>{language === "BM" ? "Muat Turun Resit" : "Download Receipts"}</span>
           </button>
           <button
             onClick={handleDownloadDraft}
             className="h-9 px-3.5 rounded-xl text-[10px] font-black tracking-wide bg-[#09244A] text-white hover:bg-opacity-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
           >
-            <span>Download Draft</span>
+            <span>{language === "BM" ? "Muat Turun Draf" : "Download Draft"}</span>
           </button>
         </div>
       </div>
@@ -1344,9 +1592,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         <div className="p-3.5 bg-[#EBF7F5] border border-[#00A884]/20 rounded-2xl flex items-start gap-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] z-10 relative animate-fadeIn">
           <FileCheck className="w-5 h-5 text-teal-brand flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h4 className="text-[12px] font-extrabold text-teal-brand-dark font-sans">Export for Spouse's Filing</h4>
+            <h4 className="text-[12px] font-extrabold text-[#052e16] font-sans">{language === "BM" ? "Eksport untuk Fail Pasangan" : "Export for Spouse's Filing"}</h4>
             <p className="text-[11px] text-[#526070] font-semibold leading-relaxed">
-              Your spouse is the main filer. Tax5 will keep your records here so you can export them for your spouse’s filing.
+              {language === "BM" ? "Pasangan anda adalah pemfail utama. Tax5 akan menyimpan rekod anda di sini supaya anda boleh mengeksportnya untuk pemfailan pasangan anda." : "Your spouse is the main filer. Tax5 will keep your records here so you can export them for your spouse’s filing."}
             </p>
           </div>
         </div>
@@ -1357,9 +1605,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         <div className="p-3.5 bg-[#FAF8F5] border border-[#D97706]/20 rounded-2xl flex items-start gap-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] z-10 relative animate-fadeIn">
           <Info className="w-5 h-5 text-[#D97706]/85 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h4 className="text-[12px] font-extrabold text-[#A16207] font-sans">Spouse income needed</h4>
+            <h4 className="text-[12px] font-extrabold text-[#A16207] font-sans">{language === "BM" ? "Pendapatan pasangan diperlukan" : "Spouse income needed"}</h4>
             <p className="text-[11px] text-[#526070] font-semibold leading-relaxed">
-              Because you chose joint assessment under your name, add your spouse’s total income before preparing your final tax summary.
+              {language === "BM" ? "Sebab anda memilih taksiran bersama di bawah nama anda, tambah jumlah pendapatan pasangan anda sebelum menyediakan ringkasan cukai akhir anda." : "Because you chose joint assessment under your name, add your spouse’s total income before preparing your final tax summary."}
             </p>
           </div>
         </div>
@@ -1370,9 +1618,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         <div className="p-3.5 bg-[#EBF7F5] border border-[#00A884]/20 rounded-2xl flex items-start gap-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.02)] z-10 relative animate-fadeIn">
           <FileCheck className="w-5 h-5 text-teal-brand flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h4 className="text-[12px] font-extrabold text-[#001D11] font-sans">Spouse relief eligible</h4>
+            <h4 className="text-[12px] font-extrabold text-[#001D11] font-sans">{language === "BM" ? "Layak pelepasan pasangan" : "Spouse relief eligible"}</h4>
             <p className="text-[11px] text-[#526070] font-semibold leading-relaxed">
-              Because your spouse has no income, you are eligible to claim a Spouse Relief of up to RM 4,000 on your Form BE draft. Keep marriage documents as proof.
+              {language === "BM" ? "Memandangkan pasangan anda tiada pendapatan, anda layak menuntut Pelepasan Pasangan sehingga RM4,000 pada draf Borang BE anda. Simpan dokumen perkahwinan sebagai bukti." : "Because your spouse has no income, you are eligible to claim a Spouse Relief of up to RM 4,000 on your Form BE draft. Keep marriage documents as proof."}
             </p>
           </div>
         </div>
@@ -1433,19 +1681,19 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                     {/* Text and figures */}
                     <div className="flex justify-between items-start text-xs leading-none">
                       <div>
-                        <span className="font-extrabold text-navy text-[11px] block">{cat}</span>
+                        <span className="font-extrabold text-navy text-[11px] block">{language === "BM" ? (cat === "Lifestyle" ? "Gaya Hidup" : cat === "Medical" ? "Perubatan" : cat === "Education" ? "Pendidikan" : cat === "Sports" ? "Sukan" : cat === "Insurance" ? "Insurans" : "Lain-lain") : cat}</span>
                         <span className="text-[9px] text-neutral-450 font-sans block max-w-[170px] leading-tight mt-0.5">
-                          {CATEGORY_LIMITS[cat].description}
+                          {language === "BM" ? CATEGORY_LIMITS[cat].descriptionBM || CATEGORY_LIMITS[cat].description : CATEGORY_LIMITS[cat].description}
                         </span>
                       </div>
                       
                       <div className="text-right leading-none">
                         <div className="font-bold text-navy text-[11px] font-mono">
-                          RM{spent.toFixed(2)} of <span className="text-neutral-450 font-medium font-sans">RM{limit.toLocaleString("en-US")}</span>
+                          RM{spent.toFixed(2)} {language === "BM" ? "daripada" : "of"} <span className="text-neutral-450 font-medium font-sans">RM{limit.toLocaleString("en-US")}</span>
                         </div>
                         {isCapped && (
                           <span className="inline-block px-1 py-0.5 bg-amber-50 text-amber-700 rounded text-[7.5px] font-bold mt-1 leading-none shadow-3xs">
-                            CAPPED AT LIMIT
+                            {language === "BM" ? "HAD MAKSIMUM DICAPAI" : "CAPPED AT LIMIT"}
                           </span>
                         )}
                       </div>
@@ -1503,7 +1751,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
           <div className="space-y-3">
             <div className="p-3.5 bg-[#FFFDF0] border border-[#FFF1C2]/45 rounded-xl text-left leading-normal animate-fadeIn">
               <p className="text-[11.5px] text-[#5C450B] font-bold">
-                Employment income details not added yet. Add EA/EC totals when you receive your yearly employment form for a clearer tax estimate.
+                {language === "BM" ? "Butiran pendapatan penggajian belum ditambah lagi. Tambah jumlah EA/EC apabila anda menerima borang penggajian tahunan anda untuk anggaran cukai yang lebih jelas." : "Employment income details not added yet. Add EA/EC totals when you receive your yearly employment form for a clearer tax estimate."}
               </p>
             </div>
             <div className="flex gap-2">
@@ -1511,13 +1759,13 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                 onClick={() => setActiveView("employment")}
                 className="flex-1 py-2 px-3 bg-[#0B2545] hover:bg-[#031427] text-white text-[11px] font-black rounded-xl transition-all cursor-pointer shadow-3xs text-center"
               >
-                Add Employment Income Details
+                {language === "BM" ? "Tambah Pendapatan Penggajian" : "Add Employment Income Details"}
               </button>
               <button
                 onClick={executeDownload}
                 className="flex-1 py-2 px-3 bg-white hover:bg-neutral-50 text-neutral-600 border border-neutral-250 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer text-center"
               >
-                Download Receipt Draft Only
+                {language === "BM" ? "Hanya Muat Turun Draf Resit" : "Download Receipt Draft Only"}
               </button>
             </div>
           </div>
@@ -1525,9 +1773,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
           <div className="space-y-3">
             <div className="bg-[#EAF7F4] p-3 rounded-xl flex justify-between items-center text-[11px] text-[#001D11]">
               <div>
-                <span className="font-extrabold block text-left">EA Form Totals Added:</span>
+                <span className="font-extrabold block text-left">{language === "BM" ? "Jumlah Borang EA Ditambah:" : "EA Form Totals Added:"}</span>
                 <span className="text-[9.5px] text-neutral-500 font-semibold block text-left">
-                  {employers.length} {employers.length === 1 ? "employment record" : "employment records"}
+                  {employers.length} {language === "BM" ? "rekod pekerjaan" : (employers.length === 1 ? "employment record" : "employment records")}
                 </span>
               </div>
               <div className="text-right">
@@ -1535,7 +1783,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                   RM {totalIncome.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
                 <span className="text-[9.5px] text-[#00A884] font-black leading-none block">
-                  Total MTD: RM {totalMtd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {language === "BM" ? "Jumlah PCB" : "Total MTD"}: RM {totalMtd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -1545,7 +1793,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                 <div key={emp.id} className="p-2 border border-neutral-200/50 rounded-xl bg-neutral-50/55 flex justify-between items-center text-xs">
                   <div className="truncate pr-4 text-left">
                     <span className="font-extrabold text-navy text-[11px] block truncate">{emp.name}</span>
-                    <span className="text-[9px] text-neutral-500 font-medium">Income: RM {emp.income.toLocaleString()} • Doc: {emp.docType || "EA form"}</span>
+                    <span className="text-[9px] text-neutral-500 font-medium">{language === "BM" ? "Pendapatan" : "Income"}: RM {emp.income.toLocaleString()} • Doc: {emp.docType ? (emp.docType === "EA form" ? (language === "BM" ? "Borang EA" : "EA form") : (language === "BM" ? "Borang EC" : "EC form")) : (language === "BM" ? "Borang EA" : "EA form")}</span>
                   </div>
                   <button
                     onClick={() => handleDeleteEmployer(emp.id)}
@@ -1561,7 +1809,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
               onClick={() => setActiveView("employment")}
               className="w-full py-2 bg-neutral-100 hover:bg-neutral-200/80 text-navy font-bold text-[11px] rounded-xl cursor-pointer text-center transition-all"
             >
-              Manage Employment Income Details
+              {language === "BM" ? "Urus Butiran Pendapatan Penggajian" : "Manage Employment Income Details"}
             </button>
           </div>
         )}
@@ -1625,6 +1873,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
   employersLength,
 }) => {
   const [showAllReliefs, setShowAllReliefs] = React.useState(false);
+  const { language } = useLanguage();
 
   // SSPN claim calculation
   const sspnReceiptAmount = receipts
@@ -1689,34 +1938,34 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
           </div>
           <div className="min-w-0 text-left">
             <h3 className="font-extrabold text-[12.5px] text-[#9A5B00] font-heading tracking-tight">
-              Needs Review Before Filing
+              {language === "BM" ? "Memerlukan Semakan Sebelum Pemfailan" : "Needs Review Before Filing"}
             </h3>
             <p className="text-[10px] text-[#344054] font-semibold mt-0.5 leading-normal">
-              These receipts may need more checking before you include them.
+              {language === "BM" ? "Resit-resit ini mungkin memerlukan pemeriksaan lanjut sebelum anda memasukkannya." : "These receipts may need more checking before you include them."}
             </p>
           </div>
         </div>
 
         {checkAgainReceipts.length === 0 && !(smartSetup?.maritalStatus === "Married" && smartSetup?.spouseAssessmentChoice === "Not sure yet") ? (
           <p className="text-[11px] text-neutral-500 font-semibold text-center py-2.5 font-sans">
-            No items need review. Everything is streamlined!
+            {language === "BM" ? "Tiada item yang memerlukan semakan. Semuanya teratur!" : "No items need review. Everything is streamlined!"}
           </p>
         ) : (
           <div className="space-y-2">
             {smartSetup?.maritalStatus === "Married" && smartSetup?.spouseAssessmentChoice === "Not sure yet" && (
               <div className="p-3 bg-[#FFFDF2] border border-[#EAD5A8]/55 rounded-xl space-y-1 text-left animate-fadeIn">
                 <span className="text-[9.5px] uppercase font-extrabold text-[#9A5B00] block font-sans">
-                  Assessment Status: Needs Review
+                  {language === "BM" ? "Status Taksiran: Memerlukan Semakan" : "Assessment Status: Needs Review"}
                 </span>
                 <p className="text-[11px] text-[#344054] font-semibold leading-relaxed font-sans">
-                  You selected "Not sure yet" for assessment choice under setup. Please confirm whether you are filing separately or jointly.
+                  {language === "BM" ? "Anda memilih \"Kurang pasti lagi\" untuk pilihan taksiran di bawah tetapan. Sila sahkan sama ada anda memfailkan secara berasingan atau bersama." : "You selected \"Not sure yet\" for assessment choice under setup. Please confirm whether you are filing separately or jointly."}
                 </p>
               </div>
             )}
             {checkAgainReceipts.length > 0 && (
               <>
                 <p className="text-[10.5px] text-[#344054] font-semibold bg-[#FFFDF4] p-2.5 rounded-xl border border-[#EAD5A8]/45 leading-normal font-sans text-left">
-                  Some items need checking before filing. Tap a receipt under Tax Records to edit or clarify.
+                  {language === "BM" ? "Beberapa item memerlukan semakan sebelum pemfailan. Ketik resit di bawah Rekod Cukai untuk mengedit atau menjelaskan." : "Some items need checking before filing. Tap a receipt under Tax Records to edit or clarify."}
                 </p>
                 {checkAgainReceipts.map((r) => (
                   <div key={r.id} className="flex justify-between items-center gap-2 p-3 bg-white hover:bg-[#FCF8EC]/40 border border-[#F3E1B9]/25 rounded-xl leading-none transition-colors">
@@ -1743,17 +1992,17 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
           </div>
           <div className="min-w-0 text-left">
             <h3 className="font-extrabold text-[12.5px] text-neutral-500 font-heading tracking-tight">
-              Not Included
+              {language === "BM" ? "Tidak Disertakan" : "Not Included"}
             </h3>
             <p className="text-[10px] text-neutral-450 font-semibold mt-0.5 leading-normal">
-              Saved receipts that are not counted in your claim total.
+              {language === "BM" ? "Resit disimpan yang tidak dikira dalam jumlah tuntutan anda." : "Saved receipts that are not counted in your claim total."}
             </p>
           </div>
         </div>
 
         {nonClaimableReceipts.length === 0 ? (
           <p className="text-[11px] text-neutral-400 font-semibold text-center py-2.5 font-sans">
-            No receipts in this block.
+            {language === "BM" ? "Tiada resit dalam blok ini." : "No receipts in this block."}
           </p>
         ) : (
           <div className="space-y-2">
@@ -1782,10 +2031,10 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
         >
           <div>
             <h3 className={`font-extrabold text-[12px] uppercase tracking-wider ${isBEGuideExpanded ? "text-[#4FAE91]" : "text-navy"}`}>
-              Form BE Draft Filing Guide
+              {language === "BM" ? "Panduan Pemfailan Draf Borang BE" : "Form BE Draft Filing Guide"}
             </h3>
             <p className={`text-[10px] mt-0.5 leading-normal text-left ${isBEGuideExpanded ? "text-neutral-300 font-medium" : "text-neutral-500 font-semibold"}`}>
-              Tap to view copy-paste filing tags
+              {language === "BM" ? "Ketik untuk melihat tag pemfailan salin-tampal" : "Tap to view copy-paste filing tags"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -1803,7 +2052,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
             {/* Section A: Personal Particulars */}
             <div className="space-y-2.5 text-left font-sans">
               <span className="text-[9px] font-black text-[#0B2545] uppercase tracking-widest block border-b border-neutral-100 pb-1">
-                Section A: Personal Particulars
+                {language === "BM" ? "Seksyen A: Maklumat Peribadi" : "Section A: Personal Particulars"}
               </span>
               
               <div className="space-y-2">
@@ -1815,7 +2064,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         A6
                       </span>
                       <span className="text-[11px] font-bold text-[#0B2545] text-wrap">
-                        Type of assessment
+                        {language === "BM" ? "Jenis taksiran" : "Type of assessment"}
                       </span>
                     </div>
                     {(() => {
@@ -1875,6 +2124,20 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         return "Needs review";
                       })();
                       const isReady = choiceText !== "Needs review";
+                      const getLocalizedChoiceText = (text: string) => {
+                        if (language !== "BM") return text;
+                        switch (text) {
+                          case "Needs review": return "Memerlukan semakan";
+                          case "Joint assessment in husband’s name": return "Taksiran bersama atas nama suami";
+                          case "Joint assessment in wife’s name": return "Taksiran bersama atas nama isteri";
+                          case "Separate assessment": return "Taksiran berasingan";
+                          case "Spouse has no income / no source / tax-exempt income": return "Pasangan tiada punca pendapatan / pendapatan dikecualikan cukai";
+                          case "Self only: single": return "Diri sendiri: bujang";
+                          case "Self only: divorcee": return "Diri sendiri: duda/janda";
+                          case "Self only: widow / widower": return "Diri sendiri: balu / duda";
+                          default: return text;
+                        }
+                      };
                       return (
                         <div className="shrink-0 text-right">
                           <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full select-none text-wrap border ${
@@ -1882,14 +2145,14 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                               ? "text-[#00A884] bg-[#EAF7F4] border-[#00A884]/15" 
                               : "text-[#D97706] bg-[#FFF8E8] border-[#D97706]/15"
                           }`}>
-                            {choiceText}
+                            {getLocalizedChoiceText(choiceText)}
                           </span>
                         </div>
                       );
                     })()}
                   </div>
                   <p className="text-[9.5px] text-[#6B7280] leading-normal font-medium text-wrap">
-                    Filing choice based on your setup
+                    {language === "BM" ? "Pilihan pemfailan berdasarkan tetapan anda" : "Filing choice based on your setup"}
                   </p>
                 </div>
               </div>
@@ -1898,7 +2161,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
             {/* Section B: Income & Deductions */}
             <div className="space-y-2.5 text-left font-sans">
               <span className="text-[9px] font-black text-[#0B2545] uppercase tracking-widest block border-b border-neutral-100 pb-1">
-                Section B: Statutory Income & Tax Payable
+                {language === "BM" ? "Seksyen B: Pendapatan Berkanun & Cukai Kena Dibayar" : "Section B: Statutory Income & Tax Payable"}
               </span>
               
               <div className="space-y-2">
@@ -1910,19 +2173,19 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         B1
                       </span>
                       <span className="text-[11px] font-bold text-[#0B2545] text-wrap">
-                        Income from employment
+                        {language === "BM" ? "Pendapatan daripada penggajian" : "Income from employment"}
                       </span>
                     </div>
                     <div className="text-right shrink-0">
                       <span className={`text-[11.5px] font-black font-mono ${hasIncomeDetails ? "text-[#00A884]" : "text-neutral-450"}`}>
                         {hasIncomeDetails 
                           ? `RM ${totalIncome.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-                          : "Not provided"}
+                          : (language === "BM" ? "Tidak disediakan" : "Not provided")}
                       </span>
                     </div>
                   </div>
                   <p className="text-[9.5px] text-[#6B7280] leading-normal font-medium text-wrap">
-                    Summed statutory annual income total from EA lists
+                    {language === "BM" ? "Jumlah pendapatan berkanun tahunan daripada senarai EA" : "Summed statutory annual income total from EA lists"}
                   </p>
                 </div>
 
@@ -1934,7 +2197,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         B1a
                       </span>
                       <span className="text-[11px] font-bold text-[#0B2545] text-wrap">
-                        Number of employments
+                        {language === "BM" ? "Bilangan penggajian" : "Number of employments"}
                       </span>
                     </div>
                     <div className="text-right shrink-0">
@@ -1943,12 +2206,12 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                           ? "text-[#D97706] bg-[#FFF8E8] border-[#D97706]/15"
                           : "text-[#00A884] bg-[#EAF7F4] border-[#00A884]/15"
                       }`}>
-                        {hasIncomeDetails ? numEmployments : "No records"}
+                        {hasIncomeDetails ? (language === "BM" ? `${numEmployments} rekod` : numEmployments) : (language === "BM" ? "Tiada rekod" : "No records")}
                       </span>
                     </div>
                   </div>
                   <p className="text-[9.5px] text-[#6B7280] leading-normal font-medium text-wrap">
-                    Total employers count calculated from EA lists
+                    {language === "BM" ? "Jumlah majikan dikira daripada senarai EA" : "Total employers count calculated from EA lists"}
                   </p>
                 </div>
 
@@ -1961,17 +2224,17 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                           B11
                         </span>
                         <span className="text-[11px] font-bold text-[#A16207] text-wrap">
-                          Spouse income needed
+                          {language === "BM" ? "Pendapatan pasangan diperlukan" : "Spouse income needed"}
                         </span>
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-[9.5px] font-extrabold text-[#D97706] bg-[#FFEFE5] px-2.5 py-0.5 border border-amber-500/15 rounded-full select-none">
-                          Required
+                          {language === "BM" ? "Diperlukan" : "Required"}
                         </span>
                       </div>
                     </div>
                     <p className="text-[9.5px] text-[#A16207]/80 leading-normal font-medium text-wrap">
-                      Statutory income of spouse is required for joint assessment
+                      {language === "BM" ? "Pendapatan berkanun pasangan diperlukan untuk taksiran bersama" : "Statutory income of spouse is required for joint assessment"}
                     </p>
                   </div>
                 )}
@@ -1984,7 +2247,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         B13
                       </span>
                       <span className="text-[11px] font-bold text-[#0B2545] text-wrap">
-                        Total relief (from Part G / G23)
+                        {language === "BM" ? "Jumlah pelepasan (daripada Bahagian G / G23)" : "Total relief (from Part G / G23)"}
                       </span>
                     </div>
                     <div className="text-right shrink-0">
@@ -1994,7 +2257,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                     </div>
                   </div>
                   <p className="text-[9.5px] text-[#6B7280] leading-normal font-medium text-wrap">
-                    Sum of automatic individual relief and accumulated claimable receipts
+                    {language === "BM" ? "Jumlah pelepasan individu automatik dan simpanan resit boleh dituntut terkumpul" : "Sum of automatic individual relief and accumulated claimable receipts"}
                   </p>
                 </div>
 
@@ -2006,19 +2269,19 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         B14
                       </span>
                       <span className="text-[11px] font-bold text-[#0B2545] text-wrap">
-                        Chargeable income draft estimate
+                        {language === "BM" ? "Anggaran draf pendapatan bercukai" : "Chargeable income draft estimate"}
                       </span>
                     </div>
                     <div className="text-right shrink-0">
                       <span className={`text-[11.5px] font-black font-mono ${hasIncomeDetails ? "text-[#00A884]" : "text-[#D97706]"}`}>
                         {hasIncomeDetails 
                           ? `RM ${chargeableIncome.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-                          : "Not calculated"}
+                          : (language === "BM" ? "Belum dikira" : "Not calculated")}
                       </span>
                     </div>
                   </div>
                   <p className="text-[9.5px] text-[#6B7280] leading-normal font-medium text-wrap">
-                    Statutory employment income minus total relief deductions (min RM0.00)
+                    {language === "BM" ? "Pendapatan penggajian berkanun ditolak jumlah pelepasan cukai (min RM0.00)" : "Statutory employment income minus total relief deductions (min RM0.00)"}
                   </p>
                 </div>
               </div>
@@ -2027,7 +2290,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
             {/* Section BC: Tax Deduction & Tax Payable Preparation */}
             <div className="space-y-2.5 text-left font-sans">
               <span className="text-[9px] font-black text-[#0B2545] uppercase tracking-widest block border-b border-neutral-100 pb-1">
-                Section BC: Tax Deduction & Tax Payable Preparation
+                {language === "BM" ? "Seksyen BC: Potongan Cukai & Penyediaan Cukai Kena Dibayar" : "Section BC: Tax Deduction & Tax Payable Preparation"}
               </span>
               
               <div className="space-y-2">
@@ -2039,19 +2302,19 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         B27
                       </span>
                       <span className="text-[11px] font-bold text-[#0B2545] text-wrap">
-                        Tax Deduction (PCB / MTD)
+                        {language === "BM" ? "Potongan Cukai (PCB)" : "Tax Deduction (PCB / MTD)"}
                       </span>
                     </div>
                     <div className="text-right shrink-0">
                       <span className={`text-[11.5px] font-black font-mono ${hasIncomeDetails ? "text-[#00A884]" : "text-neutral-450"}`}>
                         {hasIncomeDetails 
                           ? `RM ${totalMtd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-                          : "Not provided"}
+                          : (language === "BM" ? "Tidak disediakan" : "Not provided")}
                       </span>
                     </div>
                   </div>
                   <p className="text-[9.5px] text-[#6B7280] leading-normal font-medium text-wrap">
-                    Summed monthly tax already deducted from EA lists for YA 2025
+                    {language === "BM" ? "Jumlah potongan cukai bulanan yang telah dipotong daripada senarai EA bagi YA 2025" : "Summed monthly tax already deducted from EA lists for YA 2025"}
                   </p>
                 </div>
 
@@ -2063,7 +2326,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         B28
                       </span>
                       <span className="text-[11px] font-bold text-[#0B2545] text-wrap">
-                        Tax payable / repayable estimation status
+                        {language === "BM" ? "Anggaran status cukai kena dibayar / bayar balik" : "Tax payable / repayable estimation status"}
                       </span>
                     </div>
                     <div className="text-right shrink-0">
@@ -2076,20 +2339,20 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                               : "text-neutral-500 bg-neutral-50 border-neutral-200/55"
                         }`}>
                           {netDiff < 0 
-                            ? `Repayable (Refund) estimate: RM ${Math.abs(netDiff).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                            ? `${language === "BM" ? "Anggaran Mulangan Cukai (Bayar Balik)" : "Repayable (Refund) estimate"}: RM ${Math.abs(netDiff).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
                             : netDiff > 0 
-                              ? `Estimated Balance Payable: RM ${netDiff.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-                              : "Zero Balance (No tax due)"}
+                              ? `${language === "BM" ? "Anggaran Baki Cukai Kena Dibayar" : "Estimated Balance Payable"}: RM ${netDiff.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                              : (language === "BM" ? "Baki Sifar (Tiada baki cukai)" : "Zero Balance (No tax due)")}
                         </span>
                       ) : (
                         <span className="text-[10px] font-bold text-[#D97706] bg-[#FFF8E8] border border-[#D97706]/15 px-2.5 py-0.5 rounded-full">
-                          Not calculated — add EA/EC employment details first
+                          {language === "BM" ? "Belum dikira — tambah butiran penggajian EA/EC terlebih dahulu" : "Not calculated — add EA/EC employment details first"}
                         </span>
                       )}
                     </div>
                   </div>
                   <p className="text-[9.5px] text-[#6B7280] leading-normal font-medium text-wrap">
-                    Calculation based on standard e-Filing tax rates and MTD contributions for YA 2025
+                    {language === "BM" ? "Pengiraan berdasarkan kadar cukai e-Filing standard dan caruman PCB bagi YA 2025" : "Calculation based on standard e-Filing tax rates and MTD contributions for YA 2025"}
                   </p>
                 </div>
 
@@ -2102,12 +2365,12 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                           Output
                         </span>
                         <span className="text-[11px] font-bold text-[#00A884] text-wrap font-heading">
-                          Export records for spouse
+                          {language === "BM" ? "Eksport rekod untuk pasangan" : "Export records for spouse"}
                         </span>
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-[10px] font-extrabold text-[#000] bg-teal-brand hover:bg-[#009473] px-2.5 py-1 rounded-full select-none cursor-pointer">
-                          Export Ready
+                          {language === "BM" ? "Sedia Dieksport" : "Export Ready"}
                         </span>
                       </div>
                     </div>
@@ -2122,33 +2385,33 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
             {/* Section G: Approved Deductions & Reliefs */}
             <div className="space-y-2.5 pt-1 text-left font-sans">
               <span className="text-[9px] font-black text-[#0B2545] uppercase tracking-widest block border-b border-neutral-100 pb-1">
-                Section G: Tax Reliefs & Deductions
+                {language === "BM" ? "Seksyen G: Pelepasan & Potongan Cukai" : "Section G: Tax Reliefs & Deductions"}
               </span>
 
               <div className="space-y-3">
                 <p className="text-[9.5px] text-[#6B7280] leading-normal font-medium">
-                  Reliefs currently included in your Tax5 draft.
+                  {language === "BM" ? "Pelepasan yang kini disertakan dalam draf Tax5 anda." : "Reliefs currently included in your Tax5 draft."}
                 </p>
 
                 {(() => {
                   const allReliefLines = [
                     {
                       code: "G1",
-                      name: "Individual Automatic Relief",
+                      name: language === "BM" ? "Pelepasan Automatik Individu" : "Individual Automatic Relief",
                       spent: 9000,
                       limit: 9000,
                       claimed: 9000,
-                      note: "Automatic resident individual claim.",
+                      note: language === "BM" ? "Tuntutan individu pemastautin automatik." : "Automatic resident individual claim.",
                       statusText: "Automatic",
                       isActive: true,
                     },
                     {
                       code: "G5",
-                      name: "Education Fees (Self)",
+                      name: language === "BM" ? "Yuran Pengajian (Diri Sendiri)" : "Education Fees (Self)",
                       spent: categoryTotals[ClaimCategory.Education] || 0,
                       limit: CATEGORY_LIMITS[ClaimCategory.Education].limit,
                       claimed: cappedCategoryTotals[ClaimCategory.Education] || 0,
-                      note: "Self study courses and degrees study.",
+                      note: language === "BM" ? "Kursus pengajian sendiri dan pengajian peringkat ijazah." : "Self study courses and degrees study.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Education && r.claimStatus === ClaimStatus.CheckAgain)
                         ? "Needs Review"
                         : "From saved receipts",
@@ -2156,15 +2419,15 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                     },
                     ...(smartSetup?.maritalStatus === "Married" ? [{
                       code: "G5 Spouse",
-                      name: "Spouse Relief",
+                      name: language === "BM" ? "Pelepasan Pasangan" : "Spouse Relief",
                       spent: hasSpouseRelief ? 4000 : 0,
                       limit: 4000,
                       claimed: hasSpouseRelief ? 4000 : 0,
                       note: hasSpouseRelief 
-                        ? "Claim for spouse with no source of income." 
+                        ? (language === "BM" ? "Tuntutan untuk pasangan tanpa punca pendapatan." : "Claim for spouse with no source of income.") 
                         : (smartSetup.spouseAssessmentChoice === "Not sure yet" || smartSetup.spouseAssessmentSituation === "Not sure yet")
-                          ? "Married assessment choices are uncertain."
-                          : "Married separate/joint assessment chosen.",
+                          ? (language === "BM" ? "Pilihan taksiran perkahwinan belum pasti." : "Married assessment choices are uncertain.")
+                          : (language === "BM" ? "Sila pilih sama ada taksiran bersama / berasingan." : "Married separate/joint assessment chosen."),
                       statusText: hasSpouseRelief 
                         ? "From profile setup" 
                         : (smartSetup.spouseAssessmentChoice === "Not sure yet" || smartSetup.spouseAssessmentSituation === "Not sure yet")
@@ -2174,11 +2437,11 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                     }] : []),
                     {
                       code: "G6/G7",
-                      name: "Medical & Health Expenses",
+                      name: language === "BM" ? "Perbelanjaan Perubatan & Kesihatan" : "Medical & Health Expenses",
                       spent: categoryTotals[ClaimCategory.Medical] || 0,
                       limit: CATEGORY_LIMITS[ClaimCategory.Medical].limit,
                       claimed: cappedCategoryTotals[ClaimCategory.Medical] || 0,
-                      note: "Self, spouse, child medical or vaccination.",
+                      note: language === "BM" ? "Rawatan perubatan atau imunisasi diri sendiri, pasangan atau anak." : "Self, spouse, child medical or vaccination.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Medical && r.claimStatus === ClaimStatus.CheckAgain)
                         ? "Needs Review"
                         : "From saved receipts",
@@ -2186,11 +2449,11 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                     },
                     {
                       code: "G9",
-                      name: "Lifestyle Deductions",
+                      name: language === "BM" ? "Pelepasan Gaya Hidup" : "Lifestyle Deductions",
                       spent: categoryTotals[ClaimCategory.Lifestyle] || 0,
                       limit: CATEGORY_LIMITS[ClaimCategory.Lifestyle].limit,
                       claimed: cappedCategoryTotals[ClaimCategory.Lifestyle] || 0,
-                      note: "Books, reading material, tech, internet.",
+                      note: language === "BM" ? "Buku, akhbar, komputer, telefon pintar, internet." : "Books, reading material, tech, internet.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Lifestyle && r.claimStatus === ClaimStatus.CheckAgain)
                         ? "Needs Review"
                         : "From saved receipts",
@@ -2198,11 +2461,11 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                     },
                     {
                       code: "G10",
-                      name: "Sports & Gymnasium Equipment",
+                      name: language === "BM" ? "Peralatan Sukan & Aktiviti Fizikal" : "Sports & Gymnasium Equipment",
                       spent: categoryTotals[ClaimCategory.Sports] || 0,
                       limit: CATEGORY_LIMITS[ClaimCategory.Sports].limit,
                       claimed: cappedCategoryTotals[ClaimCategory.Sports] || 0,
-                      note: "Gym fees, sports events, equipment.",
+                      note: language === "BM" ? "Keahlian gim, penyertaan acara sukan dan peralatan sukan." : "Gym fees, sports events, equipment.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Sports && r.claimStatus === ClaimStatus.CheckAgain)
                         ? "Needs Review"
                         : "From saved receipts",
@@ -2210,13 +2473,13 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                     },
                     {
                       code: "G13",
-                      name: "SSPN Net Savings",
+                      name: language === "BM" ? "Tabungan Bersih SSPN" : "SSPN Net Savings",
                       spent: sspnReceiptAmount,
                       limit: 8000,
                       claimed: sspnCapped,
                       note: sspnReceiptAmount > 0 
-                        ? "Net deposit savings statement." 
-                        : (smartSetup?.sspnSavingsChild === "Yes" ? "SSPN saving statement expected but no receipts uploaded yet." : "Unsure if SSPN contribution applies."),
+                        ? (language === "BM" ? "Penyata simpanan bersih simpanan SSPN." : "Net deposit savings statement.") 
+                        : (smartSetup?.sspnSavingsChild === "Yes" ? (language === "BM" ? "Penyata simpanan SSPN dijangka tetapi tiada resit dimuat naik lagi." : "SSPN saving statement expected but no receipts uploaded yet.") : (language === "BM" ? "Kurang pasti jika simpanan SSPN berkenaan." : "Unsure if SSPN contribution applies.")),
                       statusText: sspnReceiptAmount > 0 
                         ? (receipts.some(r => (r.formBEItem === "G13" || (r.tax5DisplayName || "").toLowerCase().includes("sspn") || (r.notes || "").toLowerCase().includes("sspn") || (r.merchant || "").toLowerCase().includes("sspn")) && r.claimStatus === ClaimStatus.CheckAgain) ? "Needs Review" : "From saved receipts")
                         : (smartSetup?.sspnSavingsChild === "Yes" || smartSetup?.sspnSavingsChild === "Not sure") ? "Needs Review" : "Not included",
@@ -2224,55 +2487,55 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                     },
                     {
                       code: "G17",
-                      name: "EPF Contributions",
+                      name: language === "BM" ? "Caruman KWSP" : "EPF Contributions",
                       spent: epfVal,
                       limit: 4000,
                       claimed: epfCapped,
-                      note: "Employees Provident Fund deposits.",
+                      note: language === "BM" ? "Deposit Kumpulan Wang Simpanan Pekerja." : "Employees Provident Fund deposits.",
                       statusText: "From employment details",
                       isActive: epfVal > 0,
                     },
                     {
                       code: "G20",
-                      name: "SOCSO & EIS Contributions",
+                      name: language === "BM" ? "Caruman PERKESO & SIP" : "SOCSO & EIS Contributions",
                       spent: socsoVal + eisVal,
                       limit: 350,
                       claimed: totalG20,
-                      note: "Social security contributions.",
+                      note: language === "BM" ? "Caruman Pertubuhan Keselamatan Sosial." : "Social security contributions.",
                       statusText: "From employment details",
                       isActive: (socsoVal + eisVal) > 0,
                     },
                     ...(smartSetup?.childrenCount && smartSetup.childrenCount !== "0" && smartSetup.childrenCount !== "Prefer not to say" && smartSetup.childrenCount !== "" ? [{
                       code: "G11-G12",
-                      name: "Child Relief (Under 18 / Care / Educ)",
+                      name: language === "BM" ? "Pelepasan Anak (Bawah 18 / Jagaan)" : "Child Relief (Under 18 / Care / Educ)",
                       spent: 0,
                       limit: 8000,
                       claimed: 0,
                       note: smartSetup.childrenCount === "Not sure"
-                        ? "Unsure of child support details."
-                        : "Applied child support relief in MyTax.",
+                        ? (language === "BM" ? "Kurang pasti butiran jagaan anak." : "Unsure of child support details.")
+                        : (language === "BM" ? "Menuntut pelepasan jagaan anak di MyTax." : "Applied child support relief in MyTax."),
                       statusText: smartSetup.childrenCount === "Not sure" ? "Needs Review" : "From profile setup",
                       isActive: true,
                     }] : []),
                     ...(smartSetup?.supportingParents && smartSetup.supportingParents !== "No" && smartSetup.supportingParents !== "Prefer not to say" && smartSetup.supportingParents !== "" ? [{
                       code: "G6 (Parents)",
-                      name: "Parents Medical Treatment & Support",
+                      name: language === "BM" ? "Rawatan Perubatan Ibu Bapa" : "Parents Medical Treatment & Support",
                       spent: 0,
                       limit: 8000,
                       claimed: 0,
                       note: smartSetup.supportingParents === "Not sure"
-                        ? "Unsure of parents medical support details."
-                        : "Parents medical/care support relief applied.",
+                        ? (language === "BM" ? "Kurang pasti butiran rawatan perubatan ibu bapa." : "Unsure of parents medical support details.")
+                        : (language === "BM" ? "Tuntutan pelepasan rawatan/jagaan ibu bapa digunakan." : "Parents medical/care support relief applied."),
                       statusText: smartSetup.supportingParents === "Not sure" ? "Needs Review" : "From profile setup",
                       isActive: true,
                     }] : []),
                     {
                       code: "Other",
-                      name: "Other Claim Receipts",
+                      name: language === "BM" ? "Resit Tuntutan Lain" : "Other Claim Receipts",
                       spent: categoryTotals[ClaimCategory.Other] || 0,
                       limit: CATEGORY_LIMITS[ClaimCategory.Other].limit,
                       claimed: cappedCategoryTotals[ClaimCategory.Other] || 0,
-                      note: "Remaining tax receipts subtotal.",
+                      note: language === "BM" ? "Jumlah kecil baki resit tuntutan lain." : "Remaining tax receipts subtotal.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Other && r.claimStatus === ClaimStatus.CheckAgain)
                         ? "Needs Review"
                         : "From saved receipts",
@@ -2283,11 +2546,23 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                   const filteredRows = allReliefLines.filter(row => row.isActive && row.statusText !== "Not included");
                   const unusedRows = allReliefLines.filter(row => !row.isActive || row.statusText === "Not included");
 
+                  const getLocalizedStatusText = (text: string) => {
+                    if (language !== "BM") return text;
+                    switch (text) {
+                      case "Automatic": return "Automatik";
+                      case "Needs Review": return "Semak Semula";
+                      case "From saved receipts": return "Resit Disimpan";
+                      case "From employment details": return "Butiran Pekerjaan";
+                      case "From profile setup": return "Tetapan Profil";
+                      default: return text;
+                    }
+                  };
+
                   return (
                     <div className="space-y-3">
                       {filteredRows.length === 0 ? (
                         <div className="p-4 bg-white border border-neutral-200/50 rounded-xl text-center text-[11px] text-[#6B7280]">
-                          No receipt-based reliefs added yet.
+                          {language === "BM" ? "Tiada pelepasan berasaskan resit ditambah lagi." : "No receipt-based reliefs added yet."}
                         </div>
                       ) : (
                         <div className="space-y-2">
@@ -2315,7 +2590,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                               
                               <div className="flex items-center justify-between gap-2 text-[9.5px] text-[#6B7280]">
                                 <span className="font-semibold truncate max-w-[70%] text-neutral-500">
-                                  {row.note} {row.spent > row.limit && <span className="text-amber-600 font-bold">(Capped at RM{row.limit})</span>}
+                                  {row.note} {row.spent > row.limit && <span className="text-amber-600 font-bold">({language === "BM" ? "Had mak: " : "Capped at RM"}{row.limit})</span>}
                                 </span>
                                 <span className={`px-1.5 py-0.5 rounded-full font-bold select-none text-[8px] tracking-wide uppercase ${
                                   row.statusText === "Automatic"
@@ -2328,7 +2603,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                                           ? "bg-[#F3F4F6] text-[#374151] border border-[#374151]/15"
                                           : "bg-neutral-50 text-[#6B7280] border border-neutral-200/55"
                                 }`}>
-                                  {row.statusText}
+                                  {getLocalizedStatusText(row.statusText)}
                                 </span>
                               </div>
                             </div>
@@ -2344,7 +2619,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                               G23
                             </span>
                             <span className="text-[11px] font-black text-[#0B2545] truncate uppercase tracking-wider">
-                              Total Relief (B13 subtotal)
+                              {language === "BM" ? "Jumlah Pelepasan (Jumlah Kecil B13)" : "Total Relief (B13 subtotal)"}
                             </span>
                           </div>
                           <div className="text-right shrink-0">
@@ -2354,7 +2629,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                           </div>
                         </div>
                         <p className="text-[9px] text-[#6B7280] font-semibold leading-normal">
-                          Filing subtotal transferred directly to Line B13 under Part BA.
+                          {language === "BM" ? "Jumlah kecil pemfailan dipindahkan secara langsung ke Baris B13 di bawah Bahagian BA." : "Filing subtotal transferred directly to Line B13 under Part BA."}
                         </p>
                       </div>
 
@@ -2364,7 +2639,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         onClick={() => setShowAllReliefs(!showAllReliefs)}
                         className="w-full h-9 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-xl text-[10px] font-bold text-neutral-500 flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs mt-1"
                       >
-                        <span>{showAllReliefs ? "Hide categories not included" : "View categories not included in this draft"}</span>
+                        <span>{showAllReliefs ? (language === "BM" ? "Sembunyikan kategori tidak disertakan" : "Hide categories not included") : (language === "BM" ? "Lihat kategori yang tidak disertakan dalam draf ini" : "View categories not included in this draft")}</span>
                         {showAllReliefs ? (
                           <ChevronUp className="w-3.5 h-3.5 text-neutral-400" />
                         ) : (
@@ -2376,7 +2651,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         <div className="space-y-3 pt-2 mt-1 border-t border-neutral-100">
                           <div className="p-3 bg-neutral-50/50 border border-neutral-200/20 rounded-xl text-left">
                             <p className="text-[9.5px] text-neutral-500 leading-snug font-medium">
-                              These are possible Form BE categories, but they are not included in your current draft because no amount or profile condition has been added.
+                              {language === "BM" ? "Ini adalah kategori Borang BE yang sah, tetapi tidak disertakan dalam draf semasa anda kerana tiada jumlah atau maklumat profil diisi." : "These are possible Form BE categories, but they are not included in your current draft because no amount or profile condition has been added."}
                             </p>
                           </div>
                           <div className="space-y-2">
@@ -2403,7 +2678,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                                     {row.note}
                                   </span>
                                   <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-400 border border-neutral-200/50 rounded-full font-bold text-[8px] tracking-wide uppercase">
-                                    Not included
+                                    {language === "BM" ? "Tidak disertakan" : "Not included"}
                                   </span>
                                 </div>
                               </div>
@@ -2422,10 +2697,10 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                 <Info className="w-4 h-4 text-[#D97706] flex-shrink-0 mt-0.5" />
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <span className="text-[10px] uppercase tracking-wider font-extrabold text-[#A16207] block">
-                    SSPN Statement Reminder
+                    {language === "BM" ? "Peringatan Penyata SSPN" : "SSPN Statement Reminder"}
                   </span>
                   <p className="text-[10.5px] text-[#6B7280] leading-normal font-semibold text-wrap">
-                    Check your net annual contributions statement to confirm actual eligibility limit.
+                    {language === "BM" ? "Sila semak penyata caruman tahunan bersih anda untuk mengesahkan had kelayakan sebenar." : "Check your net annual contributions statement to confirm actual eligibility limit."}
                   </p>
                 </div>
               </div>
@@ -2435,7 +2710,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
             <div className="p-3 bg-white border border-neutral-200/50 rounded-xl flex items-start gap-1.5 shadow-3xs text-left font-sans animate-fadeIn">
               <span className="text-teal-brand shrink-0 select-none text-xs">💡</span>
               <p className="text-[9.5px] text-[#6B7280] leading-normal font-bold text-wrap">
-                Copy these values straight into the corresponding fields on the official MyTax/LHDN website to simplify your filing process.
+                {language === "BM" ? "Salin nilai-nilai ini terus ke medan yang sepadan di tapak web rasmi MyTax/LHDN untuk memudahkan proses pemfailan anda." : "Copy these values straight into the corresponding fields on the official MyTax/LHDN website to simplify your filing process."}
               </p>
             </div>
           </div>
@@ -2446,7 +2721,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
       <div className="text-center w-full pt-2 pb-1 z-10 relative font-sans">
         <p className="text-[9.5px] text-[#4F5B66] font-semibold leading-relaxed flex items-center justify-center gap-1.5 px-4 opacity-95">
           <HelpCircle className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-          <span>Pre-filing preparation guide only. Verify final eligibility with LHDN/MyTax.</span>
+          <span>{language === "BM" ? "Panduan penyediaan pra-pemfailan sahaja. Sahkan kelayakan akhir dengan LHDN/MyTax." : "Pre-filing preparation guide only. Verify final eligibility with LHDN/MyTax."}</span>
         </p>
       </div>
 
@@ -2456,7 +2731,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
           onClick={onBackToHome}
           className="w-full h-11 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-600 font-bold text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-sm"
         >
-          <span>Back to Home</span>
+          <span>{language === "BM" ? "Kembali ke Laman Utama" : "Back to Home"}</span>
         </button>
       </div>
 

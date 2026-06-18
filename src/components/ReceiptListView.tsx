@@ -20,6 +20,7 @@ import {
 import { Logo } from "./Logo";
 import { SuggestionInsightsCard } from "./SuggestionInsightsCard";
 import { Receipt, ClaimStatus } from "../types";
+import { useLanguage } from "../context/LanguageContext";
 
 const downloadReceiptImage = (receipt: Receipt) => {
   if (!receipt.receiptImageDataUrl) return;
@@ -95,12 +96,13 @@ const ReceiptImagePreview = ({
   onOpenViewer: () => void; 
   onDownload: () => void;
 }) => {
+  const { language } = useLanguage();
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="font-bold text-navy flex items-center gap-1.5 text-[10px] uppercase tracking-wider">
           <FileText className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-          <span>Receipt image:</span>
+          <span>{language === "BM" ? "Imej resit:" : "Receipt image:"}</span>
         </p>
         <button
           onClick={(e) => {
@@ -110,7 +112,7 @@ const ReceiptImagePreview = ({
           className="flex items-center gap-1 text-[9px] font-extrabold text-teal-brand hover:text-[#009473] transition-colors uppercase tracking-wider cursor-pointer"
         >
           <Download className="w-3 h-3 shrink-0" />
-          <span>Download image</span>
+          <span>{language === "BM" ? "Muat turun imej" : "Download image"}</span>
         </button>
       </div>
       <div 
@@ -125,15 +127,30 @@ const ReceiptImagePreview = ({
         />
         <div className="absolute inset-0 bg-black/10 group-hover:bg-black/25 transition-colors flex items-center justify-center">
           <div className="bg-black/60 text-white rounded-lg px-2.5 py-1 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-            <span>Click to expand & zoom</span>
+            <span>{language === "BM" ? "Klik untuk besar & zum" : "Click to expand & zoom"}</span>
           </div>
         </div>
         <div className="absolute bottom-2 right-2 bg-black/65 text-white rounded-md px-1.5 py-0.5 text-[8px] font-bold">
-          Click to view
+          {language === "BM" ? "Klik untuk lihat" : "Click to view"}
         </div>
       </div>
     </div>
   );
+};
+
+const getCategoryDisplayName = (cat: string, lang: string) => {
+  if (lang === "BM") {
+    switch (cat) {
+      case "Lifestyle": return "Gaya Hidup";
+      case "Medical": return "Perubatan";
+      case "Education": return "Pendidikan";
+      case "Sports": return "Sukan";
+      case "Insurance": return "Insurans";
+      case "Other": return "Tuntutan Lain";
+      default: return cat;
+    }
+  }
+  return cat;
 };
 
 interface ReceiptListViewProps {
@@ -151,6 +168,8 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
   onNavigateToScan,
   onNavigateToSetup,
 }) => {
+  const { language, t } = useLanguage();
+
   // Filters state
   const [searchMerchant, setSearchMerchant] = useState("");
   const [filterYear, setFilterYear] = useState<string>("All Years");
@@ -230,8 +249,12 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
       {/* Search and Top Filter Bar */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold font-heading text-navy">View Receipts</h2>
-          <p className="text-xs text-neutral-500">Review your scanned cash-in slips.</p>
+          <h2 className="text-xl font-bold font-heading text-navy">
+            {language === "BM" ? "Lihat Resit" : "View Receipts"}
+          </h2>
+          <p className="text-xs text-neutral-500">
+            {language === "BM" ? "Semak slip tunai yang telah diimbas." : "Review your scanned cash-in slips."}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -239,7 +262,7 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
             className="h-9 px-3 bg-teal-brand hover:bg-[#009170] border border-transparent rounded-xl text-xs font-bold text-white flex items-center gap-1 shadow-sm cursor-pointer transition-all active:scale-[0.98]"
           >
             <Plus className="w-4 h-4 text-white stroke-[2.5]" />
-            <span>Add</span>
+            <span>{language === "BM" ? "Tambah" : "Add"}</span>
           </button>
         </div>
       </div>
@@ -252,9 +275,13 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
           </div>
           
           <div className="space-y-1.5 max-w-xs">
-            <h3 className="font-bold text-navy text-base">Your saved receipts will appear here.</h3>
+            <h3 className="font-bold text-navy text-base">
+              {language === "BM" ? "Resit anda yang disimpan akan dipaparkan di sini." : "Your saved receipts will appear here."}
+            </h3>
             <p className="text-xs text-neutral-500 leading-relaxed font-semibold">
-              Scan or add your first receipt to see your estimated claim total update in real-time.
+              {language === "BM"
+                ? "Imbas atau tambah resit pertama anda untuk melihat jumlah tuntutan anggaran anda dikemas kini dalam masa nyata."
+                : "Scan or add your first receipt to see your estimated claim total update in real-time."}
             </p>
           </div>
 
@@ -262,7 +289,7 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
             onClick={onNavigateToScan}
             className="px-6 h-11 bg-gradient-to-br from-[#00B896] via-[#00A884] to-[#009170] hover:from-[#00A082] hover:to-[#008062] hover:scale-[1.01] active:scale-[0.99] transition-all text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-sm cursor-pointer"
           >
-            <span>Scan Receipt</span>
+            <span>{language === "BM" ? "Imbas Resit" : "Scan Receipt"}</span>
           </button>
         </div>
       ) : (
@@ -274,7 +301,7 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                 <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Search merchant, notes, category..."
+                  placeholder={language === "BM" ? "Cari peniaga, nota, kategori..." : "Search merchant, notes, category..."}
                   className="w-full h-9 pl-9 pr-8 bg-white border border-neutral-250 rounded-xl text-xs font-bold text-neutral-700 outline-none focus:ring-1 focus:ring-teal-brand/35 focus:border-teal-brand transition-all"
                   value={searchMerchant}
                   onChange={(e) => setSearchMerchant(e.target.value)}
@@ -297,7 +324,7 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span>Filters</span>
+                <span>{language === "BM" ? "Penapis" : "Filters"}</span>
                 {(filterYear !== "All Years" || filterMonth !== "All Months" || filterStatus !== "All") && (
                   <span className="w-2 h-2 rounded-full bg-teal-brand"></span>
                 )}
@@ -309,14 +336,14 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
               <div className="bg-white border border-neutral-200 rounded-2xl p-3 shadow-3xs text-left animate-slideDown grid grid-cols-3 gap-2 relative">
                 <div>
                   <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
-                    Assessment Year
+                    {language === "BM" ? "Tahun Taksiran" : "Assessment Year"}
                   </label>
                   <select
                     className="w-full h-8 px-2 bg-neutral-50 border border-neutral-200 rounded-lg text-[11px] font-extrabold text-neutral-750 outline-none focus:border-teal-brand focus:bg-white"
                     value={filterYear}
                     onChange={(e) => setFilterYear(e.target.value)}
                   >
-                    <option value="All Years">All Years</option>
+                    <option value="All Years">{language === "BM" ? "Semua Tahun" : "All Years"}</option>
                     <option value="YA 2026">YA 2026</option>
                     <option value="YA 2025">YA 2025</option>
                     <option value="YA 2024">YA 2024</option>
@@ -325,36 +352,54 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
 
                 <div>
                   <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
-                    Receipt Month
+                    {language === "BM" ? "Bulan Resit" : "Receipt Month"}
                   </label>
                   <select
                     className="w-full h-8 px-2 bg-neutral-50 border border-neutral-200 rounded-lg text-[11px] font-extrabold text-neutral-750 outline-none focus:border-teal-brand focus:bg-white"
                     value={filterMonth}
                     onChange={(e) => setFilterMonth(e.target.value)}
                   >
-                    <option value="All Months">All Months</option>
+                    <option value="All Months">{language === "BM" ? "Semua Bulan" : "All Months"}</option>
                     {[
-                      "January", "February", "March", "April", "May", "June",
-                      "July", "August", "September", "October", "November", "December"
+                      { en: "January", bm: "Januari" },
+                      { en: "February", bm: "Februari" },
+                      { en: "March", bm: "Mac" },
+                      { en: "April", bm: "April" },
+                      { en: "May", bm: "Mei" },
+                      { en: "June", bm: "Jun" },
+                      { en: "July", bm: "Julai" },
+                      { en: "August", bm: "Ogos" },
+                      { en: "September", bm: "September" },
+                      { en: "October", bm: "Oktober" },
+                      { en: "November", bm: "November" },
+                      { en: "December", bm: "Disember" }
                     ].map((m) => (
-                      <option key={m} value={m}>{m}</option>
+                      <option key={m.en} value={m.en}>
+                        {language === "BM" ? m.bm : m.en}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-[9px] font-bold text-neutral-400 uppercase tracking-wider mb-1">
-                    Claim Status
+                    {language === "BM" ? "Status Tuntutan" : "Claim Status"}
                   </label>
                   <select
                     className="w-full h-8 px-2 bg-neutral-50 border border-neutral-200 rounded-lg text-[11px] font-extrabold text-neutral-750 outline-none focus:border-teal-brand focus:bg-white"
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
                   >
-                    <option value="All">All Statuses</option>
-                    <option value={ClaimStatus.Claimable}>Claimable</option>
-                    <option value={ClaimStatus.CheckAgain}>Needs Review</option>
-                    <option value={ClaimStatus.NonClaimable}>Not-eligible</option>
+                    <option value="All">{language === "BM" ? "Semua Status" : "All Statuses"}</option>
+                    <option value={ClaimStatus.Claimable}>
+                      {language === "BM" ? "Boleh Dituntut" : "Claimable"}
+                    </option>
+                    <option value={ClaimStatus.CheckAgain}>
+                      {language === "BM" ? "Semak Semula" : "Needs Review"}
+                    </option>
+                    <option value={ClaimStatus.NonClaimable}>
+                      {language === "BM" ? "Tidak Boleh Dituntut" : "Not-eligible"}
+                    </option>
                   </select>
                 </div>
 
@@ -369,7 +414,7 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                       }}
                       className="text-[10px] font-extrabold text-[#EF4444] hover:underline cursor-pointer flex items-center gap-1"
                     >
-                      Reset All Filters
+                      {language === "BM" ? "Set Semula Semua Penapis" : "Reset All Filters"}
                     </button>
                   </div>
                 )}
@@ -381,8 +426,12 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
           {filteredReceipts.length === 0 ? (
             <div className="text-center py-12 px-4 bg-white border border-neutral-200/50 rounded-2xl">
               <BadgeAlert className="w-10 h-10 text-amber-brand mx-auto mb-2" />
-              <p className="text-xs text-navy font-bold">No match found</p>
-              <p className="text-[11px] text-neutral-400 mt-0.5">Choose another status filter view</p>
+              <p className="text-xs text-navy font-bold">
+                {language === "BM" ? "Tiada padanan ditemui" : "No match found"}
+              </p>
+              <p className="text-[11px] text-neutral-400 mt-0.5">
+                {language === "BM" ? "Pilih penapis status yang lain" : "Choose another status filter view"}
+              </p>
             </div>
           ) : (
             /* Receipts listing stack */
@@ -408,13 +457,13 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                     <div className="flex items-start justify-between gap-2.5">
                       <div className="space-y-0.5">
                         <span className="text-[10px] text-neutral-400 font-bold tracking-wider uppercase font-sans">
-                          {receipt.category}
+                          {getCategoryDisplayName(receipt.category, language)}
                         </span>
                         <h4 className="font-extrabold text-xs text-navy tracking-tight truncate max-w-[200px]">
                           {receipt.merchant}
                         </h4>
                         <p className="text-[10px] text-neutral-400 font-mono font-medium">
-                          {new Date(receipt.date).toLocaleDateString("en-MY", {
+                          {new Date(receipt.date).toLocaleDateString(language === "BM" ? "ms-MY" : "en-MY", {
                             year: "numeric",
                             month: "short",
                             day: "2-digit",
@@ -424,14 +473,18 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
 
                       {/* Right column: Price Tag */}
                       <div className="text-right flex flex-col items-end">
-                        <span className="text-[11px] font-bold text-neutral-400 leading-none">RM</span>
+                        <span className="text-[11px] font-bold text-neutral-400 leading-none font-sans">RM</span>
                         <span className="text-sm font-black text-navy leading-tight">
                           {receipt.amount.toFixed(2)}
                         </span>
                         
                         {/* Compact Claim Status badge */}
                         <span className={`inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold mt-1 border ${badgeStyle}`}>
-                          {receipt.claimStatus}
+                          {receipt.claimStatus === ClaimStatus.Claimable 
+                            ? (language === "BM" ? "Boleh Dituntut" : "Claimable")
+                            : receipt.claimStatus === ClaimStatus.CheckAgain
+                            ? (language === "BM" ? "Semak Semula" : "Needs Review")
+                            : (language === "BM" ? "Tidak Layak" : "Not-eligible")}
                         </span>
                       </div>
                     </div>
@@ -445,12 +498,12 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                       >
                         {isExpanded ? (
                           <>
-                            <span>Hide Details</span>
+                            <span>{language === "BM" ? "Sembunyikan Butiran" : "Hide Details"}</span>
                             <ChevronUp className="w-3.5 h-3.5 text-neutral-400" />
                           </>
                         ) : (
                           <>
-                            <span>Show Details</span>
+                            <span>{language === "BM" ? "Lihat Butiran" : "Show Details"}</span>
                             <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
                           </>
                         )}
@@ -480,20 +533,22 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                       <div className="p-3 bg-red-50 border border-red-100 rounded-xl space-y-2 animate-scaleIn mt-1.5">
                         <div className="flex items-start gap-1.5">
                           <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                          <p className="text-[11px] font-bold text-red-700">Delete this receipt?</p>
+                          <p className="text-[11px] font-bold text-red-700">
+                            {language === "BM" ? "Padam resit ini?" : "Delete this receipt?"}
+                          </p>
                         </div>
                         <div className="flex gap-2 justify-end">
                           <button
                             onClick={() => setConfirmDeleteId(null)}
                             className="text-[10px] px-2.5 py-1.5 rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 font-bold cursor-pointer"
                           >
-                            Cancel
+                            {language === "BM" ? "Batal" : "Cancel"}
                           </button>
                           <button
                             onClick={() => confirmDelete(receipt.id)}
                             className="text-[10px] px-2.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold cursor-pointer"
                           >
-                            Yes, Delete
+                            {language === "BM" ? "Ya, Padam" : "Yes, Delete"}
                           </button>
                         </div>
                       </div>
@@ -512,18 +567,22 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                           />
                         )}
 
-                        <div className="space-y-1 mt-1">
+                        <div className="space-y-1 mt-1 font-sans text-left">
                           <p className="font-bold text-navy flex items-center gap-1 text-[9px] uppercase tracking-wider">
                             <Info className="w-3 h-3 text-neutral-400 shrink-0" />
-                            <span>Filing Notes & Reminders:</span>
+                            <span>{language === "BM" ? "Nota & Peringatan Pemfailan:" : "Filing Notes & Reminders:"}</span>
                           </p>
                           <p className="leading-relaxed whitespace-pre-wrap font-sans text-neutral-500">
-                            {receipt.notes ? receipt.notes : "No additional claim notes saved. Keep this digital copy as proof in case of LHDN audits."}
+                            {receipt.notes 
+                              ? receipt.notes 
+                              : (language === "BM" 
+                                  ? "Tiada nota tuntutan tambahan disimpan. Simpan salinan digital ini sebagai bahan bukti jika diaudit LHDN." 
+                                  : "No additional claim notes saved. Keep this digital copy as proof in case of LHDN audits.")}
                           </p>
                         </div>
 
                         {receipt.receiptImageDataUrl && (
-                          <div className="pt-2 border-t border-neutral-150">
+                           <div className="pt-2 border-t border-neutral-150">
                             <ReceiptImagePreview 
                               src={receipt.receiptImageDataUrl} 
                               onOpenViewer={() => {
@@ -550,8 +609,12 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
           {/* Header */}
           <div className="p-4 flex items-center justify-between border-b border-white/10 text-white z-10 bg-gradient-to-b from-black/85 to-transparent">
             <div className="min-w-0 pr-4 text-left">
-              <h3 className="font-extrabold text-xs truncate uppercase tracking-widest text-[#00D7AA]">{activeViewerReceipt.merchant || "Receipt"}</h3>
-              <p className="text-[10px] text-neutral-400 font-mono mt-0.5">{activeViewerReceipt.date || "Date unspecified"}</p>
+              <h3 className="font-extrabold text-xs truncate uppercase tracking-widest text-[#00D7AA]">
+                {activeViewerReceipt.merchant || (language === "BM" ? "Resit" : "Receipt")}
+              </h3>
+              <p className="text-[10px] text-neutral-400 font-mono mt-0.5">
+                {activeViewerReceipt.date || (language === "BM" ? "Tarikh tidak dinyatakan" : "Date unspecified")}
+              </p>
             </div>
             <button 
               onClick={() => setActiveViewerReceipt(null)}
@@ -602,7 +665,7 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                   onClick={() => setZoomLevel(1)}
                   className="ml-1.5 text-[9px] font-extrabold uppercase bg-white/15 hover:bg-white/25 text-white/90 px-2 py-0.5 rounded transition-all cursor-pointer"
                 >
-                  Reset
+                  {language === "BM" ? "Set Semula" : "Reset"}
                 </button>
               )}
             </div>
@@ -614,13 +677,13 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                 className="flex-1 h-10 rounded-xl bg-teal-brand text-white font-bold text-xs hover:bg-[#009473] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
               >
                 <Download className="w-4 h-4" />
-                <span>Download Proof</span>
+                <span>{language === "BM" ? "Muat Turun Bukti" : "Download Proof"}</span>
               </button>
               <button 
                 onClick={() => setActiveViewerReceipt(null)}
                 className="flex-1 h-10 rounded-xl bg-white/10 border border-white/20 text-white font-black text-xs hover:bg-white/15 transition-all text-center cursor-pointer"
               >
-                Close Gallery
+                {language === "BM" ? "Tutup Galeri" : "Close Gallery"}
               </button>
             </div>
           </div>

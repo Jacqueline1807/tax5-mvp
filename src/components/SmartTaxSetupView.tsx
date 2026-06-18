@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { SmartSetupData, ClaimCategory, Receipt } from "../types";
+import { useLanguage } from "../context/LanguageContext";
 import {
   User,
   Briefcase,
@@ -58,6 +59,8 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
   currentUser,
   receipts = [],
 }) => {
+  const { language, t } = useLanguage();
+
   // Setup view state: "hub" | "profile" | "employment" | "claimsReview"
   const [viewMode, setViewMode] = useState<"hub" | "profile" | "employment" | "claimsReview">("profile");
 
@@ -929,10 +932,10 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
               </button>
               <div className="min-w-0 flex-1 text-left">
                 <h2 className="text-base font-bold font-heading text-navy leading-tight truncate">
-                  Profile Setup
+                  {language === "BM" ? "Sediakan Profil" : "Profile Setup"}
                 </h2>
                 <p className="text-xs text-neutral-500 font-semibold leading-tight mt-1 truncate">
-                  Tell Tax5 what applies to you.
+                  {language === "BM" ? "Beritahu Tax5 apa yang berkenaan dengan anda." : "Tell Tax5 what applies to you."}
                 </p>
               </div>
             </div>
@@ -941,42 +944,42 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
           {/* Intro block */}
           <div className="border rounded-2xl p-3.5 shadow-3xs space-y-1.5 text-left animate-slideDown" style={{ backgroundColor: "#FFF8E8", borderColor: "#F5D98B" }}>
             <h3 className="font-extrabold text-navy text-sm block font-heading">
-              A few quick questions
+              {language === "BM" ? "Beberapa soalan ringkas" : "A few quick questions"}
             </h3>
             <p className="text-[11.5px] text-neutral-700 font-semibold leading-relaxed">
-              Tax5 uses your answers to suggest claim categories and remind you what proof to keep.
+              {language === "BM" ? "Tax5 menggunakan jawapan anda untuk mencadangkan kategori tuntutan dan mengingatkan anda bukti yang perlu disimpan." : "Tax5 uses your answers to suggest claim categories and remind you what proof to keep."}
             </p>
             <p className="text-[10.5px] text-neutral-500 italic mt-1 leading-relaxed font-normal">
-              Note: You can skip anything. Some claims may be marked “Needs Review” until more details are added.
+              {language === "BM" ? "Nota: Anda boleh melangkau apa-apa sahaja. Sesetengah tuntutan mungkin ditandakan \"Perlu Semak Semula\" sehingga butiran lanjut ditambah." : "Note: You can skip anything. Some claims may be marked “Needs Review” until more details are added."}
             </p>
           </div>
 
           {/* Basic details (fully collapsed by default) */}
           <div className="bg-white border border-neutral-200/50 rounded-2xl p-3.5 shadow-3xs text-left">
             <button
-              type="button"
-              onClick={() => setShowAdvancedDetails(!showAdvancedDetails)}
-              className="w-full flex items-center justify-between font-bold text-[#0B2545] text-xs font-heading cursor-pointer"
+               type="button"
+               onClick={() => setShowAdvancedDetails(!showAdvancedDetails)}
+               className="w-full flex items-center justify-between font-bold text-[#0B2545] text-xs font-heading cursor-pointer"
             >
               <span className="flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-teal-brand" />
-                <span>Basic details</span>
+                <span>{language === "BM" ? "Butiran asas" : "Basic details"}</span>
                 <span className="text-[9px] bg-neutral-100 text-neutral-500 px-1.5 py-0.5 rounded font-black tracking-wide shrink-0">
-                  Optional
+                  {language === "BM" ? "Pilihan" : "Optional"}
                 </span>
               </span>
               <span className="text-[10px] text-teal-brand font-black hover:underline shrink-0 ml-2">
-                {showAdvancedDetails ? "Hide" : "Edit"}
+                {showAdvancedDetails ? (language === "BM" ? "Sembunyi" : "Hide") : (language === "BM" ? "Edit" : "Edit")}
               </span>
             </button>
             <p className="text-[10.5px] text-neutral-500 font-semibold mt-1 max-w-[90%] leading-normal">
-              Add name, email, and resident status for a more complete draft summary.
+              {language === "BM" ? "Tambah nama, e-mel, dan status mastautin untuk ringkasan draf yang lebih lengkap." : "Add name, email, and resident status for a more complete draft summary."}
             </p>
 
             {showAdvancedDetails && (
               <div className="mt-4 pt-4 border-t border-neutral-100 space-y-3.5 text-xs animate-slideDown">
                 <div>
-                  <label className="block font-bold text-neutral-500 text-[10px] uppercase mb-1.5">Full Name (As per MyKad / Passport)</label>
+                  <label className="block font-bold text-neutral-500 text-[10px] uppercase mb-1.5">{language === "BM" ? "Nama Penuh (Seperti MyKad / Pasport)" : "Full Name (As per MyKad / Passport)"}</label>
                   <input
                     type="text"
                     className="w-full h-9 px-3 bg-neutral-50 border border-neutral-250 rounded-lg text-xs font-bold text-neutral-700 outline-none focus:bg-white focus:ring-1 focus:ring-teal-brand/35 focus:border-teal-brand transition-all"
@@ -987,7 +990,7 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#4F5B66] text-[10px] uppercase mb-1.5">Personal Email Address</label>
+                  <label className="block font-bold text-[#4F5B66] text-[10px] uppercase mb-1.5">{language === "BM" ? "Alamat E-mel Peribadi" : "Personal Email Address"}</label>
                   <input
                     type="email"
                     className="w-full h-9 px-3 bg-neutral-50 border border-neutral-250 rounded-lg text-xs font-bold text-neutral-700 outline-none focus:bg-white focus:ring-1 focus:ring-teal-brand/35 focus:border-teal-brand transition-all"
@@ -999,13 +1002,13 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
 
                 <div className="grid grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block font-bold text-neutral-500 text-[10px] uppercase mb-1.5">Year of Assessment</label>
+                    <label className="block font-bold text-neutral-500 text-[10px] uppercase mb-1.5">{language === "BM" ? "Tahun Taksiran" : "Year of Assessment"}</label>
                     <select
                       className="w-full h-9 px-3 bg-neutral-50 border border-neutral-250 rounded-lg text-xs font-bold text-neutral-700 outline-none focus:bg-white focus:ring-[0.5px] focus:ring-teal-brand transition-all"
                       value={formData.yearOfAssessment || "YA 2026"}
                       onChange={(e) => handleProfileFieldChange("yearOfAssessment", e.target.value)}
                     >
-                      <option value="YA 2026">YA 2026 (Current)</option>
+                      <option value="YA 2026">YA 2026 ({language === "BM" ? "Semasa" : "Current"})</option>
                       <option value="YA 2025">YA 2025</option>
                       <option value="YA 2024">YA 2024</option>
                     </select>
@@ -1013,23 +1016,23 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
 
                   <div>
                     <div className="flex justify-between items-baseline mb-1.5">
-                      <label className="block font-bold text-neutral-500 text-[10px] uppercase">Resident Status</label>
+                      <label className="block font-bold text-neutral-500 text-[10px] uppercase">{language === "BM" ? "Status Mastautin" : "Resident Status"}</label>
                     </div>
                     <select
                       className="w-full h-9 px-3 bg-neutral-50 border border-neutral-250 rounded-lg text-xs font-bold text-neutral-700 outline-none"
                       value={formData.salariedBE || "Yes"}
                       onChange={(e) => handleProfileFieldChange("salariedBE", e.target.value)}
                     >
-                      <option value="Yes">Malaysian Resident (Form BE)</option>
-                      <option value="No">Non-Resident Individual</option>
-                      <option value="Not sure">Not sure</option>
+                      <option value="Yes">{language === "BM" ? "Mastautin Malaysia (Borang BE)" : "Malaysian Resident (Form BE)"}</option>
+                      <option value="No">{language === "BM" ? "Individu Bukan Mastautin" : "Non-Resident Individual"}</option>
+                      <option value="Not sure">{language === "BM" ? "Kurang pasti" : "Not sure"}</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block font-bold text-neutral-500 text-[10px] uppercase mb-1.5">Tax Ref Number (TIN)</label>
+                    <label className="block font-bold text-neutral-500 text-[10px] uppercase mb-1.5">{language === "BM" ? "Nombor Rujukan Cukai (TIN)" : "Tax Ref Number (TIN)"}</label>
                     <input
                       type="text"
                       className="w-full h-9 px-3 bg-neutral-50 border border-neutral-250 rounded-lg text-xs font-bold font-mono text-neutral-700 outline-none focus:bg-white focus:ring-1 focus:ring-teal-brand/35 transition-all"
@@ -1040,7 +1043,7 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
                   </div>
 
                   <div>
-                    <label className="block font-bold text-neutral-500 text-[10px] uppercase mb-1.5">Identification Number</label>
+                    <label className="block font-bold text-neutral-500 text-[10px] uppercase mb-1.5">{language === "BM" ? "No. Kad Pengenalan" : "Identification Number"}</label>
                     <input
                       type="text"
                       className="w-full h-9 px-3 bg-neutral-50 border border-neutral-250 rounded-lg text-xs font-semibold text-neutral-700 outline-none focus:bg-white focus:ring-1 focus:ring-teal-brand/35 transition-all"
@@ -1067,11 +1070,11 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
                     : "text-neutral-500 hover:text-neutral-700 font-bold"
                 }`}
               >
-                {tab === "family" && "Family"}
-                {tab === "health" && "Health"}
-                {tab === "lifestyle" && "Learning & Lifestyle"}
-                {tab === "insurance" && "Insurance & Savings"}
-                {tab === "other" && "Other Claims"}
+                {tab === "family" && (language === "BM" ? "Keluarga" : "Family")}
+                {tab === "health" && (language === "BM" ? "Kesihatan" : "Health")}
+                {tab === "lifestyle" && (language === "BM" ? "Pembelajaran & Gaya Hidup" : "Learning & Lifestyle")}
+                {tab === "insurance" && (language === "BM" ? "Insurans & Simpanan" : "Insurance & Savings")}
+                {tab === "other" && (language === "BM" ? "Tuntutan Lain" : "Other Claims")}
               </button>
             ))}
           </div>

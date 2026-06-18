@@ -1,12 +1,15 @@
 import React, { useEffect } from "react";
 import { Logo } from "./Logo";
 import { Sparkles } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 
 interface SplashViewProps {
   onComplete: () => void;
 }
 
 export const SplashView: React.FC<SplashViewProps> = ({ onComplete }) => {
+  const { t } = useLanguage();
+
   useEffect(() => {
     // Show splash animation for 2200ms, then transition automatically to Welcome screen
     const timer = setTimeout(() => {
@@ -31,12 +34,12 @@ export const SplashView: React.FC<SplashViewProps> = ({ onComplete }) => {
         {/* Tagline and connected MVP demo badge */}
         <div className="flex flex-col items-center gap-3">
           <p className="text-base font-bold tracking-tight text-navy">
-            Your Form BE pre-filing assistant
+            {t("splash", "tagline")}
           </p>
           
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-teal-brand-light text-teal-brand text-[11px] font-bold border border-teal-brand/10">
             <Sparkles className="w-3 h-3 text-teal-brand" />
-            <span>Pre-filing MVP Demo v1.0</span>
+            <span>{t("splash", "badge")}</span>
           </div>
         </div>
       </div>
@@ -47,7 +50,7 @@ export const SplashView: React.FC<SplashViewProps> = ({ onComplete }) => {
           {/* Spinner */}
           <div className="w-4 h-4 rounded-full border-2 border-teal-brand border-t-transparent animate-spin"></div>
           <span className="text-neutral-500 text-xs font-semibold">
-            Preparing your tax helpers...
+            {t("splash", "preparing")}
           </span>
         </div>
         
@@ -62,7 +65,7 @@ export const SplashView: React.FC<SplashViewProps> = ({ onComplete }) => {
         </div>
         
         <p className="text-[10px] text-neutral-400 font-medium">
-          Digitize receipts. Plan, sort, and draft claims safely.
+          {t("splash", "footer")}
         </p>
       </div>
     </div>

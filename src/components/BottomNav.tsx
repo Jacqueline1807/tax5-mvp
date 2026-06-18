@@ -1,6 +1,7 @@
 import React from "react";
 import { Home, FileText, ClipboardList, MessageSquare } from "lucide-react";
 import { ScreenType } from "../types";
+import { useLanguage } from "../context/LanguageContext";
 
 interface BottomNavProps {
   activeScreen: ScreenType;
@@ -13,27 +14,33 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onChangeScreen,
   receiptCount,
 }) => {
+  const { t } = useLanguage();
+
   // We map the main navigation buttons to their respective screen states
   const navItems = [
     {
       id: "HOME" as ScreenType,
-      label: "Home",
+      label: t("common", "navHome"),
+      idString: "home",
       icon: Home,
     },
     {
       id: "RECEIPT_LIST" as ScreenType,
-      label: "Receipts",
+      label: t("common", "navReceipts"),
+      idString: "receipts",
       icon: FileText,
       badge: receiptCount,
     },
     {
       id: "ASK_TAX5" as ScreenType,
-      label: "Ask Tax5",
+      label: t("common", "navAskTax5"),
+      idString: "asktax5",
       icon: MessageSquare,
     },
     {
       id: "TAX_SUMMARY" as ScreenType,
-      label: "Summary",
+      label: t("common", "navSummary"),
+      idString: "summary",
       icon: ClipboardList,
     },
   ];
@@ -58,7 +65,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         return (
           <button
             key={item.id}
-            id={`nav-tab-${item.label.toLowerCase()}`}
+            id={`nav-tab-${item.idString}`}
             onClick={() => onChangeScreen(item.id)}
             className="flex flex-col items-center justify-center flex-1 h-full relative focus:outline-none group transition-all duration-200"
           >
