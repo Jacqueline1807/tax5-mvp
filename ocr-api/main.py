@@ -37,7 +37,7 @@ def get_ocr_engine():
             from paddleocr import PaddleOCR
             logger.info("Initializing PaddleOCR engine (en, ms)...")
             # Set use_angle_cls=False or True depending on rotation needs; we default to False for speed
-            ocr_engine = PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
+            ocr_engine = PaddleOCR(use_angle_cls=True, lang="en")
             logger.info("PaddleOCR engine initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to load PaddleOCR library: {str(e)}")
