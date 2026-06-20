@@ -26,12 +26,38 @@ ocr-api/
 2. **Open the backend folder**
    ```bash
    cd ocr-api
-   
+   ```
+
 3. **Execution**:
    ```bash
-  cd ocr-api
-  python -m uvicorn main:app --reload --port 8000
+   python -m uvicorn main:app --reload --port 8000
    ```
+
+## Hugging Face Spaces Deployment (Docker)
+
+To deploy this backend as a lightweight, scaling microservice on Hugging Face Spaces:
+
+1. **Create a New Space**:
+   - Go to [Hugging Face Spaces](https://huggingface.co/spaces) and click **Create new Space**.
+   - Set a name for your Space.
+   - For **SDK**, select **Docker** (choose the **Blank** template option / no pre-configured space to use the custom `Dockerfile`).
+   - Choose your space visibility (Public or Private).
+
+2. **Upload/Commit Files**:
+   - Copy or upload the files inside the `ocr-api` folder (`Dockerfile`, `main.py`, `requirements.txt`) into the root directory of your Space repository.
+   - You can upload these via the Hugging Face web interface or clone the Space's Git repository and push them.
+
+3. **Port Routing**:
+   - Hugging Face automatically detects and routes traffic on container port **7860**.
+   - The provided `Dockerfile` is pre-configured to expose and listen on port **7860** via:
+     ```dockerfile
+     CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
+     ```
+
+4. **Verify Application status**:
+   - Once building and startup completes, visit your space URL at standard HTTP endpoints:
+     - `GET /` to verify the online status.
+     - `GET /docs` to use the interactive Swagger documentation and test the API directly.
 
 ## Endpoint Specification
 
