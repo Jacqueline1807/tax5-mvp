@@ -17,10 +17,10 @@
 }
 
 /* Custom transitions and scrollbars for our app container */
-.no-scrollbar::-webkit-scrollbar {
+::-webkit-scrollbar {
   display: none;
 }
-.no-scrollbar {
+* {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Camera, Sparkles, AlertCircle, Check, Loader2, Info, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { Camera, Sparkles, AlertCircle, Check, Loader2, Info, ChevronDown, ChevronUp, Trash2, Lock, Crown } from "lucide-react";
 import { ClaimCategory, ClaimStatus, Receipt, SmartSetupData } from "../types";
 import { SCAN_TEMPLATES, ScanTemplate } from "../data/mockTemplates";
 import { adjustReceiptSuggestion, calculateCompletionStatus } from "../utils/suggestionEngine";
@@ -11,6 +11,9 @@ interface AddScanViewProps {
   onCancel: () => void;
   smartSetup: SmartSetupData | null;
   isDemo?: boolean;
+  simulatedPlan?: string;
+  onTriggerUpgrade?: () => void;
+  receiptsCount?: number;
 }
 
 const generateMockCanvasDataUrl = (merchant: string, amount: string, date: string, category?: string) => {
@@ -110,8 +113,29 @@ const generateMockCanvasDataUrl = (merchant: string, amount: string, date: strin
   return canvas.toDataURL("image/jpeg", 0.85);
 };
 
-export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCancel, smartSetup, isDemo }) => {
+export const AddScanView: React.FC<AddScanViewProps> = ({
+  onSaveReceipt,
+  onCancel,
+  smartSetup,
+  isDemo,
+  simulatedPlan = "Free Demo",
+  onTriggerUpgrade,
+  receiptsCount = 0,
+}) => {
   const { t, language } = useLanguage();
+  
+  const isOcrLocked = simulatedPlan === "Free Demo" && receiptsCount >= 3;
+
+  const handleProAction = (e?: React.MouseEvent | React.ChangeEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (onTriggerUpgrade) {
+      onTriggerUpgrade();
+    }
+  };
+
   // Device camera and file picker input references
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -875,7 +899,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
                     type="button"
                     id="btn-try-demo-receipt"
                     onClick={handleSimulateScan}
-                    className="w-full h-10 bg-amber-brand/10 hover:bg-amber-brand/20 text-[#B45309] border border-amber-brand/35 font-extrabold rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer transition-all active:scale-[0.98] mb-1 animate-pulse"
+                    className="w-full h-10 bg-amber-brand/10 hover:bg-amber-brand/20 text-[#B45309] border border-amber-brand/35 font-extrabold rounded-xl flex items-center justify-center gap-1.5 text-xs cursor-pointer transition-all active:scale-[0.98] mb-1 relative"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-[#D97706]" />
                     <span>{language === "BM" ? "Cuba resit demo" : "Try demo receipt"}</span>
@@ -978,7 +1002,7 @@ export const AddScanView: React.FC<AddScanViewProps> = ({ onSaveReceipt, onCance
               </button>
             )}
 
-            <span className="block text-[9.5px] text-neutral-400 text-center leading-normal">
+            <span className="block text-[9.5px] text-neutral-400 text-center leading-normal mb-1.5">
               {language === "BM" ? "Pembacaan resit di tahap asas dalam MVP ini. Sila semak butiran sebelum menyimpan." : "Receipt reading is basic in this MVP. Please check the details before saving."}
             </span>
           </div>

@@ -395,8 +395,18 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
         <div className="bg-white rounded-xl p-3.5 border border-neutral-150 text-xs text-neutral-600 font-medium whitespace-pre-wrap">
           {language === "BM" ? "Tax5 belum dapat memadankan resit ini dengan panduan. Sila semak secara manual menggunakan maklumat rasmi LHDN/MyTax." : "Tax5 could not match this receipt to a guideline yet. Please review manually using the latest LHDN/MyTax information."}
         </div>
-        <div className="text-[9px] text-[#71717A] leading-normal italic bg-zinc-50 p-2 rounded-lg border border-neutral-100/90 font-sans">
-          ⚠️ <strong>{language === "BM" ? "Nota:" : "Note:"}</strong> {language === "BM" ? "Tax5 hanyalah alat sokongan pra-pemfailan sahaja. Kelayakan tuntutan akhir mesti disahkan menggunakan maklumat rasmi LHDN/MyTax." : "Tax5 is a pre-filing support tool only. Final claim eligibility must be verified using official LHDN/MyTax information."}
+        <div className="text-[9px] text-[#71717A] leading-normal italic bg-zinc-50 p-2 rounded-lg border border-neutral-100/90 font-sans space-y-1">
+          <div>
+            ⚠️ <strong>{language === "BM" ? "Nota:" : "Note:"}</strong> {language === "BM" ? "Tax5 hanyalah alat sokongan pra-pemfailan sahaja. Kelayakan tuntutan akhir mesti disahkan menggunakan maklumat rasmi LHDN/MyTax." : "Tax5 is a pre-filing support tool only. Final claim eligibility must be verified using official LHDN/MyTax information."}
+          </div>
+          <div className="text-[8.5px] text-neutral-400 not-italic pt-1 border-t border-neutral-200/40 flex items-center gap-1">
+            <Book className="w-3 h-3 text-neutral-400 shrink-0" />
+            <span>
+              {language === "BM"
+                ? "Sumber: Nota Penerangan HASiL/LHDN Borang BE 2025"
+                : "Source: HASiL/LHDN Form BE 2025 Explanatory Notes"}
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -618,12 +628,17 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
         )}
 
         {/* Source Note */}
-        {guideline.sourceNote && (
-          <div className="flex items-center gap-1.5 text-[9px] text-neutral-400 pt-1">
-            <Book className="w-3.5 h-3.5 text-neutral-400" />
-            <span className="font-semibold">{guideline.sourceNote}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 text-[9px] text-neutral-400 pt-1">
+          <Book className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+          <span className="font-semibold">
+            {language === "BM"
+              ? `Sumber: Nota Penerangan HASiL/LHDN Borang BE 2025${guideline.formItemCode ? `, Item ${guideline.formItemCode}` : ""}`
+              : `Source: HASiL/LHDN Form BE 2025 Explanatory Notes${guideline.formItemCode ? `, Item ${guideline.formItemCode}` : ""}`}
+          </span>
+          {guideline.sourceNote && (
+            <span className="text-[8px] text-neutral-350 shrink-0">({guideline.sourceNote})</span>
+          )}
+        </div>
 
         {/* Disclaimer */}
         <div className="h-px bg-neutral-150 w-full my-2"></div>

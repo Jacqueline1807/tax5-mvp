@@ -16,6 +16,7 @@ import { CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import { supabase } from "./lib/supabaseClient";
 import { adjustReceiptSuggestion } from "./utils/suggestionEngine";
 import { taxReliefGuidelines } from "./data/taxReliefGuidelines";
+import { SubscriptionModals } from "./components/SubscriptionModals";
 
 // Local storage key helper
 const LOCAL_STORAGE_KEY = "tax5_receipts_data";
@@ -35,6 +36,18 @@ export default function App() {
   
   // Auth loading check state
   const [authLoading, setAuthLoading] = useState(true);
+
+  // Subscription Simulated Plan States
+  const [simulatedPlan, setSimulatedPlan] = useState<string>(() => {
+    return localStorage.getItem("tax5_simulated_plan") || "Free Demo";
+  });
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<string | null>(null);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+
+  const triggerUpgrade = () => {
+    setSelectedPlanForUpgrade("Tax5 Pro");
+  };
   
   // App User state
   const [user, setUser] = useState<AppUser | null>(null);
@@ -447,6 +460,9 @@ export default function App() {
             onNavigateToSummary={() => setActiveScreen("TAX_SUMMARY")}
             onNavigateToSetup={() => setActiveScreen("SMART_SETUP")}
             onNavigateToAsk={() => setActiveScreen("ASK_TAX5")}
+            simulatedPlan={simulatedPlan}
+            setIsPricingOpen={setIsPricingOpen}
+            setSelectedPlanForUpgrade={setSelectedPlanForUpgrade}
           />
         );
       
@@ -456,6 +472,8 @@ export default function App() {
             onBackToHome={() => setActiveScreen("HOME")}
             userId={user?.id}
             isDemo={user?.isDemo}
+            simulatedPlan={simulatedPlan}
+            onTriggerUpgrade={triggerUpgrade}
           />
         );
       
@@ -466,6 +484,9 @@ export default function App() {
             onCancel={() => setActiveScreen(previousScreen || "HOME")}
             smartSetup={smartSetup}
             isDemo={user?.isDemo}
+            simulatedPlan={simulatedPlan}
+            onTriggerUpgrade={triggerUpgrade}
+            receiptsCount={receipts.length}
           />
         );
       
@@ -514,6 +535,8 @@ export default function App() {
             onNavigateToSetup={() => setActiveScreen("SMART_SETUP")}
             currentUser={user}
             onSaveSmartSetup={handleSaveSmartSetup}
+            simulatedPlan={simulatedPlan}
+            onTriggerUpgrade={triggerUpgrade}
           />
         );
 
@@ -571,6 +594,18 @@ export default function App() {
         activeScreen={activeScreen}
         onChangeScreen={(screen) => setActiveScreen(screen)}
         receiptCount={receipts.length}
+      />
+
+      {/* Subscription/Billing/Upgrade validation overlay components */}
+      <SubscriptionModals
+        isPricingOpen={isPricingOpen}
+        setIsPricingOpen={setIsPricingOpen}
+        simulatedPlan={simulatedPlan}
+        setSimulatedPlan={setSimulatedPlan}
+        selectedPlanForUpgrade={selectedPlanForUpgrade}
+        setSelectedPlanForUpgrade={setSelectedPlanForUpgrade}
+        isSuccessOpen={isSuccessOpen}
+        setIsSuccessOpen={setIsSuccessOpen}
       />
     </AppFrame>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MessageSquare, Send, Sparkles, HelpCircle, ArrowLeft, ChevronRight, Check } from "lucide-react";
+import { MessageSquare, Send, Sparkles, HelpCircle, ArrowLeft, ChevronRight, Check, Book, Crown, Lock } from "lucide-react";
 import { ClaimCategory, CATEGORY_LIMITS } from "../types";
 import tax5Logo from "../assets/tax5-logo.png";
 import { taxKnowledgeBase } from "../data/taxKnowledgeBase";
@@ -9,6 +9,8 @@ interface AskTax5ViewProps {
   onBackToHome: () => void;
   userId?: string;
   isDemo?: boolean;
+  simulatedPlan?: string;
+  onTriggerUpgrade?: () => void;
 }
 
 interface ChatMessage {
@@ -16,9 +18,17 @@ interface ChatMessage {
   sender: "user" | "bot";
   text: string;
   timestamp: string;
+  sourceLabel?: string;
+  isLockedOption?: boolean;
 }
 
-export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, isDemo }) => {
+export const AskTax5View: React.FC<AskTax5ViewProps> = ({
+  onBackToHome,
+  userId,
+  isDemo,
+  simulatedPlan = "Free Demo",
+  onTriggerUpgrade,
+}) => {
   const { t, language } = useLanguage();
   const storageKey = isDemo
     ? "tax5_chat_history_demo"
@@ -49,6 +59,9 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
             ? "Hai! Saya Tax5, pembantu cukai pra-pemfailan anda. Tanya saya soalan tentang kategori pelepasan cukai Borang BE, had maksimum, atau garis panduan kelayakan di Malaysia."
             : "Hi there! I'm Tax5, your pre-filing tax assistant. Ask me questions about Form BE tax relief categories, maximum limits, or eligibility guidelines in Malaysia.",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          sourceLabel: language === "BM"
+            ? "Sumber: Nota Penerangan HASiL/LHDN Borang BE 2025"
+            : "Source: HASiL/LHDN Form BE 2025 Explanatory Notes"
         }
       ]);
     }
@@ -347,14 +360,15 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
   // Function to manage and enforce token protect limits
   const checkAndIncrementGeminiLimit = (): boolean => {
     try {
+      if (simulatedPlan === "Free Demo") {
+        return true; // No 3-query free limit on quick questions anymore
+      }
       const today = new Date().toISOString().split("T")[0]; // Daily granularity
-      const limitKey = isDemo 
-        ? "tax5_custom_chat_count_demo" 
-        : `tax5_custom_chat_count_${userId || "guest"}_${today}`;
+      const limitKey = `tax5_custom_chat_count_pro_${today}`;
       
       const currentCountStr = localStorage.getItem(limitKey);
       const currentCount = currentCountStr ? parseInt(currentCountStr, 10) : 0;
-      const maxLimit = isDemo ? 5 : 10;
+      const maxLimit = 10;
 
       if (currentCount >= maxLimit) {
         return false; // Limit reached
@@ -391,6 +405,7 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
           sender: "bot",
           text: matchedLocal.answer,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          sourceLabel: matchedLocal.sourceLabel,
         };
         setMessages((prev) => [...prev, botMsg]);
       }, 350);
@@ -405,6 +420,9 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
               ? "Saya boleh membantu dengan persediaan awal Borang BE Malaysia, kategori pelepasan cukai, bukti resit, dan panduan kelayakan tuntutan. Cuba tanya tentang kategori tuntutan atau resit."
               : "I can help with Malaysian Form BE pre-filing, tax relief categories, receipt proof, and claim eligibility guidance. Try asking about a claim category or receipt.",
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            sourceLabel: language === "BM"
+              ? "Sumber: Nota Penerangan HASiL/LHDN Borang BE 2025"
+              : "Source: HASiL/LHDN Form BE 2025 Explanatory Notes"
           };
           setMessages((prev) => [...prev, botMsg]);
         }, 350);
@@ -416,14 +434,9 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
 
       if (!isAllowed) {
         setTimeout(() => {
-          const limitMsg = isDemo
-            ? (language === "BM"
-                ? "Dalam mod demo, anda boleh bertanya sehingga 5 soalan tersuai. Sila ketik mana-mana soalan pantas atau butang had popular di atas untuk jawapan segera tanpa had!"
-                : "In demo mode, you can ask up to 5 custom questions. Please tap any of our quick questions or popular limit buttons above for unlimited instant answers!")
-            : (language === "BM"
-                ? "Anda telah mencapai had harian 10 soalan pembantu cukai yang dijana secara tersuai. Sila gunakan had popular atau soalan pantas di atas untuk mendapatkan panduan segera!"
-                : "You've reached your daily limit of 10 auto-generated custom tax helper questions. Please utilize the popular limits or quick questions above to receive instant guidance!");
-          
+          const limitMsg = language === "BM"
+            ? "Anda telah mencapai had harian 10 soalan pembantu cukai yang dijana secara tersuai untuk akaun Pro. Sila gunakan had popular di atas!"
+            : "You've reached your daily limit of 10 auto-generated custom tax helper questions for Pro. Please utilize the popular limits buttons above!";
           const botMsg: ChatMessage = {
             id: `msg-${Date.now()}-bot`,
             sender: "bot",
@@ -457,6 +470,9 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
             sender: "bot",
             text: responseText,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            sourceLabel: language === "BM"
+              ? "Sumber: Janaan AI berdasarkan Nota Penerangan HASiL/LHDN Borang BE 2025"
+              : "Source: AI-Generated based on HASiL/LHDN Form BE 2025 Explanatory Notes"
           };
           setMessages((prev) => [...prev, botMsg]);
         })
@@ -470,6 +486,9 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
             sender: "bot",
             text: defaultFallback,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            sourceLabel: language === "BM"
+              ? "Sumber: Nota Penerangan HASiL/LHDN Borang BE 2025"
+              : "Source: HASiL/LHDN Form BE 2025 Explanatory Notes"
           };
           setMessages((prev) => [...prev, fallbackBotMsg]);
         })
@@ -510,7 +529,9 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
       {/* Main chat display body */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar"
+        className={`flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar ${
+          simulatedPlan === "Free Demo" ? "opacity-45 saturate-[0.6] select-none pointer-events-none" : ""
+        }`}
       >
         {/* Compact Greeting Box (Prevents empty chatbot state in a clean, non-cluttered card) */}
         {messages.length === 1 && (
@@ -606,6 +627,21 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
                         {para}
                       </p>
                     ))}
+                    {isBot && m.sourceLabel && (
+                      <div className="mt-2 pt-1.5 border-t border-[#F2F4F5] flex items-center gap-1 text-[8.5px] text-neutral-400 font-medium italic select-none">
+                        <Book className="w-2.5 h-2.5 text-neutral-400 shrink-0" />
+                        <span>{m.sourceLabel}</span>
+                      </div>
+                    )}
+                    {isBot && m.isLockedOption && (
+                      <button
+                        onClick={onTriggerUpgrade}
+                        className="w-full mt-2.5 py-1.5 bg-[#00A884] hover:bg-[#009473] text-white text-[9px] font-black rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1 uppercase tracking-wider shadow-3xs"
+                      >
+                        <Crown className="w-3 h-3 text-amber-300 fill-amber-300 animate-pulse animate-duration-1000" />
+                        <span>{language === "BM" ? "Simulasikan Naik Taraf ke Pro" : "Simulate Upgrade to Pro"}</span>
+                      </button>
+                    )}
                   </div>
                   <span className={`text-[8.5px] text-neutral-400 block px-1 ${!isBot ? "text-right" : "text-left"}`}>
                     {m.timestamp}
@@ -639,7 +675,9 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
 
       {/* Suggested question chips visible before the user types and when chat has message history */}
       {messages.length > 1 && inputText.trim() === "" && (
-        <div className="bg-white px-4 py-2.5 shrink-0 border-t border-neutral-100 space-y-1.5 animate-fadeIn">
+        <div className={`bg-white px-4 py-2.5 shrink-0 border-t border-neutral-100 space-y-1.5 ${
+          simulatedPlan === "Free Demo" ? "opacity-45 saturate-[0.6] select-none pointer-events-none" : "animate-fadeIn"
+        }`}>
           <span className="block text-[8px] font-black text-neutral-400 uppercase tracking-widest">
             {language === "BM" ? "Topik bantuan pantas" : "Quick help topics"}
           </span>
@@ -659,26 +697,68 @@ export const AskTax5View: React.FC<AskTax5ViewProps> = ({ onBackToHome, userId, 
       )}
 
       {/* Message input field bar with clean, rounded-full input bar */}
-      <div className="bg-white border-t border-neutral-150 p-3 shrink-0 flex items-center gap-2">
-        <input
-          type="text"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleSendMessage(inputText);
-            }
-          }}
-          placeholder={language === "BM" ? "Taip kategori pelepasan atau soalan..." : "Type a relief category or question..."}
-          className="flex-1 bg-[#FAFBFB] border border-neutral-250 rounded-full h-10 px-4 text-xs text-neutral-850 placeholder-neutral-400 focus:outline-none focus:bg-white focus:border-teal-brand transition-all"
+      {simulatedPlan === "Free Demo" ? (
+        <div className="bg-[#FAFBFB] border-t border-neutral-150 p-4 shrink-0 flex flex-col items-center justify-center text-center gap-3 select-none">
+          {/* Consistent Simple Locked Amber Banner with Inline PRO Badge */}
+          <div className="flex items-center justify-center gap-1.5 text-[10px] font-black text-[#78350F] bg-amber-50/20 border border-amber-300/35 px-4 py-2 rounded-xl shadow-2xs w-full max-w-[380px]">
+            <Lock className="w-3.5 h-3.5 text-amber-700/60 shrink-0" />
+            <span className="truncate">
+              {language === "BM"
+                ? "Chat Tanya Tax5 tersedia dalam Tax5 Pro."
+                : "Ask Tax5 chat is available in Tax5 Pro."}
+            </span>
+            <span className="bg-[#FEF6E0] text-[#78350F] border border-[#FDE68A]/80 text-[8px] font-black px-1.2 py-0.5 rounded uppercase shrink-0">
+              PRO
+            </span>
+          </div>
+
+          {/* Greyed out Custom Chat Composer Area */}
+          <div className="w-full max-w-[380px] bg-neutral-100/50 border border-neutral-200/50 rounded-full h-10 p-1 pl-4 pr-1.5 flex items-center gap-2 opacity-50">
+            <input
+              type="text"
+              disabled
+              placeholder={language === "BM" ? "Taip kategori pelepasan atau soalan..." : "Type a relief category or question..."}
+              className="flex-1 bg-transparent border-none text-xs text-neutral-400 placeholder-neutral-300 focus:outline-none cursor-not-allowed"
+            />
+            <button
+              type="button"
+              disabled
+              className="w-8 h-8 rounded-full bg-neutral-200 text-neutral-400 flex items-center justify-center shrink-0 cursor-not-allowed"
+            >
+              <Send className="w-3 h-3 stroke-[2.5]" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border-t border-neutral-150 p-3 shrink-0 flex items-center gap-2">
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleSendMessage(inputText);
+              }
+            }}
+            placeholder={language === "BM" ? "Taip kategori pelepasan atau soalan..." : "Type a relief category or question..."}
+            className="flex-1 bg-[#FAFBFB] border border-neutral-250 rounded-full h-10 px-4 text-xs text-neutral-850 placeholder-neutral-400 focus:outline-none focus:bg-white focus:border-teal-brand transition-all"
+          />
+          <button
+            onClick={() => handleSendMessage(inputText)}
+            className="w-10 h-10 rounded-full bg-teal-brand hover:bg-[#009170] text-white flex items-center justify-center cursor-pointer transition-all shrink-0 shadow-sm hover:indigo-glow active:scale-95"
+          >
+            <Send className="w-3.5 h-3.5 stroke-[2.5]" />
+          </button>
+        </div>
+      )}
+
+      {/* Clear overlay to capture clicks anywhere inside the Ask Tax5 feature area in Free Demo */}
+      {simulatedPlan === "Free Demo" && (
+        <div 
+          onClick={onTriggerUpgrade}
+          className="absolute left-0 right-0 bottom-0 top-[49px] z-30 cursor-pointer bg-transparent"
         />
-        <button
-          onClick={() => handleSendMessage(inputText)}
-          className="w-10 h-10 rounded-full bg-teal-brand hover:bg-[#009170] text-white flex items-center justify-center cursor-pointer transition-all shrink-0 shadow-sm hover:indigo-glow active:scale-95"
-        >
-          <Send className="w-3.5 h-3.5 stroke-[2.5]" />
-        </button>
-      </div>
+      )}
     </div>
   );
 };

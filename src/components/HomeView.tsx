@@ -12,7 +12,12 @@ import {
   Info,
   ChevronRight, 
   ChevronDown,
-  HelpCircle
+  HelpCircle,
+  Crown,
+  Sparkles,
+  X,
+  Zap,
+  Lock
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { Receipt, ClaimStatus, SmartSetupData } from "../types";
@@ -32,6 +37,9 @@ interface HomeViewProps {
   onNavigateToSummary: () => void;
   onNavigateToSetup: () => void;
   onNavigateToAsk: () => void;
+  simulatedPlan: string;
+  setIsPricingOpen: (open: boolean) => void;
+  setSelectedPlanForUpgrade: (plan: string | null) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -46,6 +54,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onNavigateToSummary,
   onNavigateToSetup,
   onNavigateToAsk,
+  simulatedPlan,
+  setIsPricingOpen,
+  setSelectedPlanForUpgrade,
 }) => {
   const { t, language } = useLanguage();
   // Calculations based on actual store
@@ -207,6 +218,35 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </button>
                   </div>
 
+                  {/* Subscription Plan Section */}
+                  <div className="pt-2.5 border-t border-[#DCE3E8] space-y-1">
+                    <div className="px-2">
+                      <span className="text-[10px] font-sans font-extrabold text-neutral-400 uppercase tracking-wider block">
+                        {language === "BM" ? "Langganan" : "Subscription"}
+                      </span>
+                      <div className="flex items-center justify-between mt-1 gap-2">
+                        <div className="min-w-0">
+                          <span className="text-[11.5px] font-sans font-bold text-[#00A884] block mt-0.5 leading-tight truncate">
+                            {simulatedPlan === "Tax5 Plus" 
+                              ? (language === "BM" ? "Tax5 Plus (Simulasi)" : "Tax5 Plus (Simulated)")
+                              : simulatedPlan === "Tax5 Pro"
+                                ? "Tax5 Pro"
+                                : (language === "BM" ? "Demo Percuma" : "Free Demo")}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            setIsPricingOpen(true);
+                          }}
+                          className="px-2.5 py-1.5 bg-[#00A884] hover:bg-[#009473] text-white text-[9.5px] font-sans font-extrabold rounded-xl transition-all cursor-pointer shadow-3xs shrink-0"
+                        >
+                          {language === "BM" ? "Naik Taraf Pelan" : "Upgrade Plan"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Sign out custom action with top spacing */}
                   {onLogout && (
                     <div className="pt-0.5">
@@ -235,7 +275,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {language === "BM" ? "Hai, " : "Hi, "}{isDemo ? (language === "BM" ? "Pengguna Demo" : "Demo User") : (userName || (language === "BM" ? "Pengguna" : "User"))} 👋
           </h3>
           <p className="text-[11.5px] text-[#4F5B66] font-semibold">
-            {isDemo ? (language === "BM" ? "Mod Demo • Resit yang diimbas disimpan secara tempatan." : "Demo Mode • Scanned receipts stay locally.") : (language === "BM" ? "Draf resit Borang BE anda sedang disediakan." : "Your Form BE receipt draft is being prepared.")}
+            {isDemo ? (language === "BM" ? "Mod Demo • Resit yang diimbas disimpan secara tempatan dalam demo ini." : "Demo Mode • Scanned receipts are saved locally in this demo.") : (language === "BM" ? "Draf resit Borang BE anda sedang disediakan." : "Your Form BE receipt draft is being prepared.")}
           </p>
         </div>
       </div>
@@ -413,33 +453,58 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>
 
       {/* 6. Ask Tax5 Support Card */}
-      <div className="bg-[#FFFDF0] border border-[#FFF1C2]/30 rounded-2xl p-3.5 shadow-3xs flex items-center justify-between gap-3 hover:bg-[#FFFDF0]/95 transition-all z-10 relative">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8.5 h-8.5 rounded-xl bg-[#FEFCE8] flex items-center justify-center text-[#B45309] shrink-0 border border-[#FFF1C2]/45 shadow-3xs">
-            <MessageSquare className="w-4 h-4.5 stroke-[2]" />
+      {simulatedPlan === "Free Demo" ? (
+        <div 
+          onClick={() => setIsPricingOpen(true)}
+          className="bg-amber-50/[0.08] hover:bg-amber-50/[0.15] border border-amber-200/25 rounded-2xl p-3.5 shadow-2xs flex items-center justify-between gap-3 transition-all z-10 relative cursor-pointer opacity-70 group select-none"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8.5 h-8.5 rounded-xl bg-amber-50/70 flex items-center justify-center text-[#78350F]/60 shrink-0 border border-amber-200/40 shadow-3xs">
+              <Lock className="w-4 h-4 stroke-[2]" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="font-bold text-[#78350F]/90 text-xs font-heading">
+                {language === "BM" ? "Panduan Tanya Tax5" : "Ask Tax5 Guidance"}
+              </h4>
+              <p className="text-[11px] text-[#78350F]/70 font-semibold leading-normal mt-0.5">
+                {language === "BM" ? "Tersedia dalam Tax5 Pro" : "Available in Tax5 Pro"}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h4 className="font-bold text-xs text-[#0B2545] font-heading">
-              {language === "BM" ? "Kurang pasti tentang tuntutan?" : "Unsure about a claim?"}
-            </h4>
-            <p className="text-[11px] text-[#4F5B66] font-medium leading-normal mt-0.5">
-              {language === "BM" ? "Tanya Tax5 sebelum memfailkan." : "Ask Tax5 before filing."}
-            </p>
+          <div className="flex items-center gap-1 bg-[#FEF6E0] text-[#78350F] border border-[#FDE68A]/80 text-[10px] font-black px-3 py-1.5 rounded-full uppercase shrink-0 shadow-3xs transition-transform group-hover:scale-[1.03] active:scale-[0.98]">
+            <Lock className="w-3 h-3 text-amber-700/60 shrink-0" />
+            <span>PRO</span>
           </div>
         </div>
-        <button
-          onClick={onNavigateToAsk}
-          className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all hover:brightness-95 active:scale-[0.98] shadow-3xs cursor-pointer shrink-0"
-          style={{
-            backgroundColor: "#FFF9E8",
-            borderColor: "#F1D89A",
-            color: "#9A6500"
-          }}
-        >
-          <span>{language === "BM" ? "Tanya Tax5" : "Ask Tax5"}</span>
-          <ChevronRight className="w-3 h-3 stroke-[2.5]" />
-        </button>
-      </div>
+      ) : (
+        <div className="bg-[#FFFDF0] border border-[#FFF1C2]/30 rounded-2xl p-3.5 shadow-3xs flex items-center justify-between gap-3 hover:bg-[#FFFDF0]/95 transition-all z-10 relative">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8.5 h-8.5 rounded-xl bg-[#FEFCE8] flex items-center justify-center text-[#B45309] shrink-0 border border-[#FFF1C2]/45 shadow-3xs">
+              <MessageSquare className="w-4 h-4.5 stroke-[2]" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="font-bold text-xs text-[#0B2545] font-heading">
+                {language === "BM" ? "Kurang pasti tentang tuntutan?" : "Unsure about a claim?"}
+              </h4>
+              <p className="text-[11px] text-[#4F5B66] font-medium leading-normal mt-0.5">
+                {language === "BM" ? "Tanya Tax5 sebelum memfailkan." : "Ask Tax5 before filing."}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onNavigateToAsk}
+            className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all hover:brightness-95 active:scale-[0.98] shadow-3xs cursor-pointer shrink-0"
+            style={{
+              backgroundColor: "#FFF9E8",
+              borderColor: "#F1D89A",
+              color: "#9A6500"
+            }}
+          >
+            <span>{language === "BM" ? "Tanya Tax5" : "Ask Tax5"}</span>
+            <ChevronRight className="w-3 h-3 stroke-[2.5]" />
+          </button>
+        </div>
+      )}
 
       {/* 7. Trust note */}
       <div className="text-center w-full mt-auto pt-3 pb-0.5 z-10 relative">

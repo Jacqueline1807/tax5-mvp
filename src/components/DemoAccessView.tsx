@@ -40,15 +40,15 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
     setSuccessMsg("");
 
     if (!email) {
-      setErrorMsg("Please enter an email address.");
+      setErrorMsg(t("demoAccess", "errEmail"));
       return;
     }
     if (!password) {
-      setErrorMsg("Please enter a password.");
+      setErrorMsg(t("demoAccess", "errPass"));
       return;
     }
     if (screen === "SIGNUP" && !name) {
-      setErrorMsg("Please enter your full name.");
+      setErrorMsg(t("demoAccess", "errName"));
       return;
     }
 
@@ -56,7 +56,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
 
     try {
       if (screen === "LOGIN") {
-        setSuccessMsg("Welcome back! Signing you in...");
+        setSuccessMsg(t("demoAccess", "msgLoggingIn"));
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -69,7 +69,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
         // Successfully signed in
         onContinue({ user: data.user, session: data.session });
       } else {
-        setSuccessMsg("Creating your account...");
+        setSuccessMsg(t("demoAccess", "msgCreating"));
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -85,10 +85,10 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
         }
 
         if (data.session) {
-          setSuccessMsg("Success! Account created and signing you in...");
+          setSuccessMsg(t("demoAccess", "msgSuccessIn"));
           onContinue({ user: data.user, session: data.session });
         } else {
-          setSuccessMsg("Success! Please check your email to confirm registration.");
+          setSuccessMsg(t("demoAccess", "msgSuccessVerify"));
           setEmail("");
           setPassword("");
           setName("");
@@ -141,7 +141,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                 {screen === "LOGIN" ? t("demoAccess", "loginTitle") : t("demoAccess", "signupTitle")}
               </h1>
               <p className="text-[11.5px] min-[370px]:text-[12.5px] text-neutral-500 leading-normal max-w-[260px] mx-auto font-semibold select-none">
-                {t("welcome", "subtitle")}
+                {t("demoAccess", "subtitle")}
               </p>
             </div>
           </div>
@@ -163,10 +163,10 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
             <div className="p-2.5 bg-neutral-50 border border-neutral-200 text-neutral-600 text-[12px] rounded-xl text-left leading-normal space-y-0.5 animate-fadeIn">
               <div className="font-bold flex items-center gap-1 text-navy">
                 <HelpCircle className="w-3.5 h-3.5 text-[#4FAE91]" />
-                Password Reset
+                {t("demoAccess", "forgotPassTitle")}
               </div>
               <p className="font-semibold text-neutral-500 text-[11px]">
-                Password reset will be available after account setup.
+                {t("demoAccess", "forgotPassDesc")}
               </p>
             </div>
           )}
@@ -255,7 +255,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                 disabled={isLoading}
                 className="w-full h-[40px] bg-[#4FAE91] hover:bg-[#459E84] text-white font-extrabold flex items-center justify-center gap-1.5 rounded-xl transition-all active:scale-[0.98] cursor-pointer text-[13px] border-none select-none mt-1 shadow-sm disabled:opacity-75 disabled:pointer-events-none"
               >
-                <span>{screen === "LOGIN" ? t("demoAccess", "loginTitle") : t("demoAccess", "signupTitle")}</span>
+                <span>{screen === "LOGIN" ? t("demoAccess", "loginBtn") : t("demoAccess", "signupBtn")}</span>
                 <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
             </form>
@@ -264,7 +264,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
             <div className="text-center pt-0.5 text-[12.5px] text-neutral-500 font-semibold select-none">
               {screen === "LOGIN" ? (
                 <span>
-                  Don’t have an account?{" "}
+                  {t("demoAccess", "signupPrompt")}{" "}
                   <button 
                     type="button"
                     onClick={() => handleToggleScreen("SIGNUP")}
@@ -275,7 +275,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
                 </span>
               ) : (
                 <span>
-                  Already have an account?{" "}
+                  {t("demoAccess", "loginPrompt")}{" "}
                   <button 
                     type="button"
                     onClick={() => handleToggleScreen("LOGIN")}
@@ -301,7 +301,7 @@ export const DemoAccessView: React.FC<DemoAccessViewProps> = ({ onContinue, onBa
         </button>
         
         <p className="text-[10.5px] text-neutral-400 font-semibold leading-relaxed max-w-[250px] mx-auto select-none text-center">
-          For quick MVP testing only. Data stays on this device/browser.
+          {t("demoAccess", "demoDisclaimer")}
         </p>
       </div>
     </div>
