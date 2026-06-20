@@ -37,7 +37,12 @@ def get_ocr_engine():
             from paddleocr import PaddleOCR
             logger.info("Initializing PaddleOCR engine (en, ms)...")
             # Set use_angle_cls=False or True depending on rotation needs; we default to False for speed
-            ocr_engine = PaddleOCR(lang="en")
+            ocr_engine = PaddleOCR(
+                lang="en",
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+                use_textline_orientation=False
+            )
             logger.info("PaddleOCR engine initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to load PaddleOCR library: {str(e)}")
@@ -148,7 +153,7 @@ async def ocr_receipt(file: UploadFile = File(...)):
             image = image.convert("RGB")
             
         # Resize large images to reduce memory usage on Render Free
-        image.thumbnail((1200, 1200))
+        image.thumbnail((1000, 1000))
             
         image_np = np.array(image)
         
@@ -156,22 +161,53 @@ async def ocr_receipt(file: UploadFile = File(...)):
         ocr = get_ocr_engine()
         
         # Run PaddleOCR inference
-        result = ocr.ocr(image_np, cls=False)
+        result = None
+        try:
+            result = ocr.ocr(image_np, cls=False)
+        except Exception as ocr_err:
+            logger.warning(f"ocr.ocr failed, attempting ocr.predict fallback: {ocr_err}")
+            try:
+                result = ocr.predict(image_np)
+            except Exception as pred_err:
+                logger.error(f"ocr.predict fallback also failed: {pred_err}")
+                raise ocr_err
         
         lines = []
         raw_text_parts = []
         
-        # Parse output formats
-        if result and len(result) > 0 and result[0] is not None:
-            # Result is a list of lines, where each line is: [ [ [x,y], [x,y], ... ], (text, confidence) ]
-            for line_res in result[0]:
-                text = line_res[1][0]
-                confidence = float(line_res[1][1])
-                lines.append({
-                    "text": text,
-                    "confidence": confidence
-                })
-                raw_text_parts.append(text)
+        def find_text_confidence(item):
+            # Recursively find tuples/lists of (str, float) or similar representation
+            if isinstance(item, (list, tuple)) and len(item) == 2 and isinstance(item[0], str) and isinstance(item[1], (int, float)):
+                return item[0], float(item[1])
+            if isinstance(item, (list, tuple)):
+                for sub in item:
+                    res = find_text_confidence(sub)
+                    if res:
+                        return res
+            return None
+
+        # Parse text lines flexibly from nested list of results
+        if result:
+            items_to_parse = result
+            if isinstance(result, list) and len(result) > 0:
+                if isinstance(result[0], list) and len(result[0]) > 0 and isinstance(result[0][0], list):
+                    items_to_parse = result[0]
+                
+            for item in items_to_parse:
+                found = find_text_confidence(item)
+                if found:
+                    text, conf = found
+                    lines.append({
+                        "text": text,
+                        "confidence": conf
+                    })
+                    raw_text_parts.append(text)
+                elif isinstance(item, str):
+                    lines.append({
+                        "text": item,
+                        "confidence": 1.0
+                    })
+                    raw_text_parts.append(item)
                 
         raw_text = "\n".join(raw_text_parts)
         
