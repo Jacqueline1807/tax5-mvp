@@ -37,7 +37,7 @@ def get_ocr_engine():
             from paddleocr import PaddleOCR
             logger.info("Initializing PaddleOCR engine (en, ms)...")
             # Set use_angle_cls=False or True depending on rotation needs; we default to False for speed
-            ocr_engine = PaddleOCR(use_angle_cls=True, lang="en")
+            ocr_engine = PaddleOCR(lang="en")
             logger.info("PaddleOCR engine initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to load PaddleOCR library: {str(e)}")
@@ -147,13 +147,16 @@ async def ocr_receipt(file: UploadFile = File(...)):
         if image.mode != "RGB":
             image = image.convert("RGB")
             
+        # Resize large images to reduce memory usage on Render Free
+        image.thumbnail((1200, 1200))
+            
         image_np = np.array(image)
         
         # Get the initialized OCR tool
         ocr = get_ocr_engine()
         
         # Run PaddleOCR inference
-        result = ocr.ocr(image_np, cls=True)
+        result = ocr.ocr(image_np, cls=False)
         
         lines = []
         raw_text_parts = []
