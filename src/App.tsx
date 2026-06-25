@@ -14,7 +14,7 @@ import { AskTax5View } from "./components/AskTax5View";
 import { Receipt, ScreenType, ClaimCategory, ClaimStatus, SmartSetupData } from "./types";
 import { CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import { supabase } from "./lib/supabaseClient";
-import { adjustReceiptSuggestion } from "./utils/suggestionEngine";
+import { adjustReceiptSuggestion, normalizeGuidelineCode } from "./utils/suggestionEngine";
 import { taxReliefGuidelines } from "./data/taxReliefGuidelines";
 import { SubscriptionModals } from "./components/SubscriptionModals";
 
@@ -269,7 +269,7 @@ export default function App() {
           return r;
         }
 
-        const guideline = r.formBEItem ? taxReliefGuidelines[r.formBEItem.toUpperCase()] : null;
+        const guideline = r.formBEItem ? taxReliefGuidelines[normalizeGuidelineCode(r.formBEItem)] : null;
         const baseStatus = guideline ? guideline.defaultStatus : ClaimStatus.CheckAgain;
 
         const adjustment = adjustReceiptSuggestion(
@@ -593,7 +593,7 @@ export default function App() {
       <BottomNav
         activeScreen={activeScreen}
         onChangeScreen={(screen) => setActiveScreen(screen)}
-        receiptCount={receipts.length}
+        receiptCount={receipts.filter(r => r.claimStatus === ClaimStatus.CheckAgain).length}
       />
 
       {/* Subscription/Billing/Upgrade validation overlay components */}

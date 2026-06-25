@@ -248,12 +248,14 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
       if (errors.category) {
         setErrors(prev => ({ ...prev, category: "" }));
       }
-      applySmartSuggestions(option.id, claimStatus || ClaimStatus.CheckAgain);
+      const isOther = option.id === "Other";
+      const statusToApply = isOther ? ClaimStatus.CheckAgain : (claimStatus || ClaimStatus.Claimable);
+      applySmartSuggestions(option.id, statusToApply, option.category);
     }
   };
 
-  const applySmartSuggestions = (itemCode: string, initialStatus: ClaimStatus) => {
-    const activeCategory = (category as ClaimCategory) || ClaimCategory.Other;
+  const applySmartSuggestions = (itemCode: string, initialStatus: ClaimStatus, overrideCategory?: ClaimCategory) => {
+    const activeCategory = overrideCategory || (category as ClaimCategory) || ClaimCategory.Other;
     const result = adjustReceiptSuggestion(itemCode, activeCategory, initialStatus, smartSetup);
     setClaimStatus(result.claimStatus);
     setConfidence(result.confidence);
@@ -279,6 +281,11 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
   const [detectedText, setDetectedText] = useState("");
   const [isDetectedTextExpanded, setIsDetectedTextExpanded] = useState(false);
   const [geminiErrorMsg, setGeminiErrorMsg] = useState<string | null>(null);
+
+  // Custom OCR states for Hugging Face
+  const [ocrConfidenceNote, setOcrConfidenceNote] = useState<string | null>(null);
+  const [ocrNeedsReview, setOcrNeedsReview] = useState<boolean>(false);
+  const [ocrDocumentType, setOcrDocumentType] = useState<string | null>(null);
 
   // Camera in-app states
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -551,6 +558,9 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
     setDetectedText("");
     setScanMessage(null);
     setGeminiErrorMsg(null);
+    setOcrConfidenceNote(null);
+    setOcrNeedsReview(false);
+    setOcrDocumentType(null);
     setErrors({});
     setIsFromCamera(false);
     setAutoReadAfterImageLoad(false);
@@ -561,10 +571,118 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
     }
   };
 
-  // Call Gemini OCR backend processing
+  const convertOcrDateToInputFormat = (ocrDate: string): string => {
+    if (!ocrDate) return "";
+    const cleaned = ocrDate.replace(/[-\.]/g, "/");
+    const parts = cleaned.split("/");
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      if (day.length <= 2 && month.length <= 2 && year.length === 4) {
+        return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+      }
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ocrDate)) {
+      return ocrDate;
+    }
+    return "";
+  };
+
+  const mapOcrToTaxCode = (merchant: string, rawText: string, linesText: string = ""): string => {
+    const combined = `${merchant} ${rawText} ${linesText}`.toLowerCase();
+    
+    // 1. G6/G7: Medical / Health Screening (Check medical keywords first to be precise)
+    if (/hospital|medical bill|clinic|klinik|poliklinik|pharmacy|farmasi|medicine|medicines|ubat|consultation|treatment|dialysis|peritoneal dialysis|health screening|pemeriksaan kesihatan|laboratory|imaging|rehabilitation|nursing care|guardian|watsons|caring pharmacy|screen|blood test|ultrasound|covid|thermometer|oximeter|doctor|physio|dental|gigi/.test(combined)) {
+      return "G6/G7";
+    }
+
+    // 2. G9: Lifestyle Books & Devices
+    if (/bookstore|book|books|popular|mph|kinokuniya|border|stationery|laptop|computer|smartphone|wifi|internet|telekom|unifi|maxis|digi|celcom|u mobile|asus|lenovo|hp |dell|apple|macbook|ipad/.test(combined)) {
+      return "G9";
+    }
+    
+    // 3. G10: Lifestyle Sports
+    if (/sports|gym|decathlon|equipment|badminton|fitness|nike|adidas|puma|under armour|runners|running|court|golf|tennis|swim|bicycle|cycling/.test(combined)) {
+      return "G10";
+    }
+    
+    // 4. G5: Education Fees
+    if (/university|tuition|course|education|school|training|college|universiti|yuran|akademi/.test(combined)) {
+      return "G5";
+    }
+    
+    // 5. G17/G19: Insurance / Takaful
+    if (/insurance|takaful|premium|aia|prudential|allianz|great eastern|zurich|etiqa|manulife/.test(combined)) {
+      return "G17/G19";
+    }
+    
+    // 6. G12: Childcare & Kindergarten Relief
+    if (/taska|tadika|kindergarten|childcare|nursery|preschool/.test(combined)) {
+      return "G12";
+    }
+    
+    // 7. G11: Breastfeeding Equipment
+    if (/breast pump|breastpump|lactation|breastfeed|milk cooler|cooler bag/.test(combined)) {
+      return "G11";
+    }
+    
+    // 8. G18: PRS
+    if (/prs|private retirement scheme|public mutual prs|kenanga prs|affin prs/.test(combined)) {
+      return "G18";
+    }
+    
+    // 9. G13: SSPN
+    if (/sspn|simpan sspn|ptptn/.test(combined)) {
+      return "G13";
+    }
+    
+    // 10. G20: SOCSO / EIS
+    if (/socso|perkeso|eis|sip sumb/.test(combined)) {
+      return "G20";
+    }
+    
+    // 11. G21: Food Waste Composting Machine
+    if (/compost|composter|sisa makanan/.test(combined)) {
+      return "G21";
+    }
+
+    // 12. G22: First housing loan
+    if (/housing loan|interest spa|housing interest/.test(combined)) {
+      return "G22";
+    }
+
+    // 13. G2: Parents Medical
+    if (/parents medical|parent medical|ibu bapa perubatan/.test(combined)) {
+      return "G2";
+    }
+
+    // 14. G3: Basic supporting equipment
+    if (/wheelchair|artificial limb|jkm/.test(combined)) {
+      return "G3";
+    }
+
+    return "Other";
+  };
+
+  // Call Tesseract OCR backend processing
   const handleReadReceipt = async () => {
-    if (!imageBase64 || !imageMimeType) {
-      setErrors((prev) => ({ ...prev, upload: "Please select or upload a receipt image first." }));
+    let fileToUpload = selectedFile;
+    if (!fileToUpload && imageBase64) {
+      try {
+        const byteString = atob(imageBase64);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: imageMimeType || "image/jpeg" });
+        fileToUpload = new File([blob], "receipt.jpg", { type: imageMimeType || "image/jpeg" });
+      } catch (err) {
+        console.error("Failed to recover file from base64:", err);
+      }
+    }
+    
+    if (!fileToUpload) {
+      setErrors((prev) => ({ ...prev, upload: language === "BM" ? "Sila pilih atau muat naik imej resit terlebih dahulu." : "Please select or upload a receipt image first." }));
       return;
     }
 
@@ -573,84 +691,111 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
     setScanMessage(null);
     setGeminiErrorMsg(null);
     setDetectedText("");
+    setOcrConfidenceNote(null);
+    setOcrNeedsReview(false);
+    setOcrDocumentType(null);
 
     try {
-      const response = await fetch("/api/read-receipt", {
+      const formData = new FormData();
+      formData.append("file", fileToUpload);
+
+      const response = await fetch("https://jacqqq-tax5-ocr-api.hf.space/ocr/receipt", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image: imageBase64,
-          mimeType: imageMimeType,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
-        let errData: any = {};
-        try {
-          errData = await response.json();
-        } catch (_) {}
-        throw new Error(errData.error || "Could not read receipt clearly. Please enter details manually.");
+        throw new Error("Could not read receipt clearly. Please enter details manually.");
       }
 
       const data = await response.json();
 
-      if (!data || typeof data !== "object") {
+      if (!data || !data.ok || !data.fields) {
         throw new Error("Could not read receipt clearly. Please enter details manually.");
       }
 
+      const fields = data.fields;
+
       // Auto-fill our forms
-      setMerchant(data.merchant || "");
-      setDate(data.date || "");
+      setMerchant(fields.merchantName || "");
+      
+      const parsedInputDate = convertOcrDateToInputFormat(fields.date);
+      setDate(parsedInputDate || "");
       
       // Keep amount formatting consistent
       let formattedAmount = "";
-      if (data.amount) {
+      if (fields.amount) {
         // Strip non-numeric currency signs
-        const cleaned = data.amount.replace(/[^0-9.]/g, "");
+        const cleaned = fields.amount.replace(/[^0-9.]/g, "");
         const parsed = parseFloat(cleaned);
         if (!isNaN(parsed)) {
           formattedAmount = parsed.toFixed(2);
         } else {
-          formattedAmount = data.amount;
+          formattedAmount = fields.amount;
         }
       }
       setAmount(formattedAmount);
 
-      setCategory(data.category || "");
-      setNotes(data.note || "");
-      setDetectedText(data.detectedText || "");
+      setNotes(fields.confidenceNote || "");
+      setDetectedText(fields.rawText || "");
+      
+      // Custom Tesseract metadata states
+      setOcrConfidenceNote(fields.confidenceNote || null);
+      setOcrNeedsReview(!!data.needsReview);
+      setOcrDocumentType(data.documentType || null);
 
-      // Classification suggestions and notes from Tax5 App Classification Guide
-      setFormBEItem(data.formBEItem || "");
-      setTax5DisplayName(data.tax5DisplayName || "");
-      setEvidenceType(data.evidenceType || "");
-      setClassificationReason(data.classificationReason || "");
+      // Client-side Tax Code classification
+      const combinedLinesText = (fields.lines || []).map((l: any) => l.text || "").join(" ");
+      const matchedCode = mapOcrToTaxCode(fields.merchantName || "", fields.rawText || "", combinedLinesText);
+      const matchedOption = dropdownOptions.find(o => o.id === matchedCode) || dropdownOptions.find(o => o.id === "Other");
 
-      // Call our smart suggestion engine
-      applySmartSuggestions(data.formBEItem || "Other", (data.claimStatus as ClaimStatus) || ClaimStatus.CheckAgain);
+      if (matchedOption) {
+        setCategory(matchedOption.category);
+        setFormBEItem(matchedOption.id);
+        setTax5DisplayName(matchedOption.displayName);
+        setEvidenceType(matchedOption.id === "Other" ? "Receipt-based" : (matchedOption.id === "G22" ? "SPA/Contract-based" : "Receipt-based"));
+        
+        let classificationText = language === "BM"
+          ? "Penjenisan cukai dicadangkan menggunakan enjin padanan pintar Tax5."
+          : "Tax classification suggested using Tax5 smart matching engine.";
+        if (data.needsReview) {
+          classificationText += " " + (language === "BM" ? "Disyorkan untuk semakan tambahan." : "Additional review recommended.");
+        }
+        setClassificationReason(classificationText);
 
-      // Handle situations where key fields couldn't be auto-detected
-      const isMissingMerchant = !data.merchant;
-      const isMissingDate = !data.date;
-      const isMissingAmount = !data.amount;
-      const isMissingCategory = !data.category;
-      const isMissingClaimStatus = !data.claimStatus;
+        // Claim status consistency logic:
+        // - If category is confidently matched and needsReview is false, allow suggested status “Claimable”.
+        // - If category is not matched (i.e. is "Other"), set status to “Needs Review”.
+        // - If documentType is “complex_bill”, set status to “Needs Review”.
+        // - If needsReview is true, set status to “Needs Review”.
+        const categoryMatched = matchedOption.id !== "Other";
+        const isComplex = data.documentType === "complex_bill";
+        const needsReview = !!data.needsReview;
 
-      if (data.fallback) {
-        setScanMessage("⚠️ Gemini is busy right now (503). Standard fields have been pre-filled with a default template. Please inspect and manually customize them below!");
-      } else if (isMissingMerchant || isMissingDate || isMissingAmount || isMissingCategory || isMissingClaimStatus) {
-        setErrors((prev) => ({
-          ...prev,
-          read: "Some details could not be detected. Please enter them manually."
-        }));
-      } else {
-        setScanMessage("Receipt successfully processed by Gemini!");
+        const shouldNeedReview = !categoryMatched || needsReview || isComplex;
+        const initialStatus = shouldNeedReview ? ClaimStatus.CheckAgain : ClaimStatus.Claimable;
+
+        // Call our smart suggestion engine with appropriate initial status
+        const result = adjustReceiptSuggestion(matchedOption.id, matchedOption.category, initialStatus, smartSetup);
+        
+        setClaimStatus(result.claimStatus);
+        setConfidence(result.confidence);
+        setSuggestionWhy(result.why);
+        setSuggestionCheck(result.check);
       }
+
+      setScanMessage(
+        language === "BM"
+          ? "Resit berjaya diproses oleh Tesseract OCR!"
+          : "Receipt successfully processed by Tesseract OCR!"
+      );
     } catch (err: any) {
-      console.error("Gemini receipt extraction failed:", err);
-      setGeminiErrorMsg("Tax5 could not read this receipt automatically right now. You can still enter the details manually and review the category suggestion.");
+      console.error("Hugging Face receipt extraction failed:", err);
+      setGeminiErrorMsg(
+        language === "BM"
+          ? "Bacaan resit tidak tersedia buat masa ini. Anda boleh terus menggunakan Tambah Manual."
+          : "Receipt reading is unavailable right now. You can continue using Manual Add."
+      );
     } finally {
       setIsReading(false);
     }
@@ -852,53 +997,67 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
       setBulkQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "scanning" } : q));
 
       try {
-        const { base64, mimeType } = await readFileAsBase64(item.file);
         const compressedDataUrl = await compressImageFile(item.file);
 
-        const response = await fetch("/api/read-receipt", {
+        const formData = new FormData();
+        formData.append("file", item.file);
+
+        const response = await fetch("https://jacqqq-tax5-ocr-api.hf.space/ocr/receipt", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            image: base64,
-            mimeType: mimeType,
-          }),
+          body: formData,
         });
 
         if (!response.ok) {
           throw new Error("Failed to scan receipt");
         }
 
-        const data = await response.json();
+        const resData = await response.json();
+        if (!resData || !resData.ok || !resData.fields) {
+          throw new Error("Could not read receipt clearly.");
+        }
+
+        const fields = resData.fields;
 
         let formattedAmount = "";
-        if (data.amount) {
-          const cleaned = data.amount.replace(/[^0-9.]/g, "");
+        if (fields.amount) {
+          const cleaned = fields.amount.replace(/[^0-9.]/g, "");
           const parsed = parseFloat(cleaned);
           if (!isNaN(parsed)) {
             formattedAmount = parsed.toFixed(2);
           } else {
-            formattedAmount = data.amount;
+            formattedAmount = fields.amount;
           }
         }
 
-        const activeCategory = (data.category as ClaimCategory) || ClaimCategory.Other;
-        const resultSuggestion = adjustReceiptSuggestion(data.formBEItem || "Other", activeCategory, (data.claimStatus as ClaimStatus) || ClaimStatus.CheckAgain, smartSetup);
+        const combinedLinesText = (fields.lines || []).map((l: any) => l.text || "").join(" ");
+        const matchedCode = mapOcrToTaxCode(fields.merchantName || "", fields.rawText || "", combinedLinesText);
+        const matchedOption = dropdownOptions.find(o => o.id === matchedCode) || dropdownOptions.find(o => o.id === "Other");
+        
+        const categoryMatched = matchedOption && matchedOption.id !== "Other";
+        const isComplex = resData.documentType === "complex_bill";
+        const needsReview = !!resData.needsReview;
+
+        const shouldNeedReview = !categoryMatched || needsReview || isComplex;
+        const initialStatus = shouldNeedReview ? ClaimStatus.CheckAgain : ClaimStatus.Claimable;
+
+        const activeCategory = matchedOption?.category || ClaimCategory.Other;
+        const resultSuggestion = adjustReceiptSuggestion(matchedOption?.id || "Other", activeCategory, initialStatus, smartSetup);
+
+        const parsedInputDate = convertOcrDateToInputFormat(fields.date);
 
         setBulkQueue(prev => prev.map(q => q.id === item.id ? {
           ...q,
           status: "ready",
-          merchant: data.merchant || "",
-          date: data.date || "",
+          merchant: fields.merchantName || "",
+          date: parsedInputDate || "",
           amount: formattedAmount,
           category: activeCategory,
           claimStatus: resultSuggestion.claimStatus,
-          notes: data.note || "",
-          formBEItem: data.formBEItem || "Other",
-          tax5DisplayName: data.tax5DisplayName || "",
-          evidenceType: data.evidenceType || "Receipt-based",
-          detectedText: data.detectedText || "",
+          notes: fields.confidenceNote || "",
+          formBEItem: matchedOption?.id || "Other",
+          tax5DisplayName: matchedOption?.displayName || "Other Allowed Relief",
+          evidenceType: matchedOption?.id === "Other" ? "Receipt-based" : (matchedOption?.id === "G22" ? "SPA/Contract-based" : "Receipt-based"),
+          detectedText: fields.rawText || "",
           confidence: resultSuggestion.confidence,
           suggestionWhy: resultSuggestion.why,
           suggestionCheck: resultSuggestion.check,
@@ -1693,6 +1852,41 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
               <span className="font-bold text-xs text-navy uppercase tracking-wider">{language === "BM" ? "Semak butiran" : "Check the details"}</span>
             </div>
 
+            {/* OCR API Specific Custom Meta Notes */}
+            {(ocrConfidenceNote || ocrNeedsReview || (ocrDocumentType && ocrDocumentType !== 'receipt')) && (
+              <div className="p-3.5 bg-neutral-50/80 border border-neutral-200/50 rounded-xl space-y-2 text-xs text-neutral-700 font-sans">
+                {ocrDocumentType && ocrDocumentType !== 'receipt' && (
+                  <div className="flex gap-2 items-start">
+                    <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold uppercase rounded tracking-wider shrink-0 mt-0.5">
+                      {language === "BM" ? "Dokumen Kompleks" : "Complex Document"}
+                    </span>
+                    <p className="text-[11px] leading-relaxed">
+                      {language === "BM"
+                        ? "Ini kelihatan seperti bil atau invois kompleks. Sila sahkan jumlah tuntutan akhir sebelum menyimpan."
+                        : "This looks like a complex bill or invoice. Please confirm the final claimable amount before saving."}
+                    </p>
+                  </div>
+                )}
+                {ocrNeedsReview && (
+                  <div className="flex gap-2 items-start">
+                    <span className="px-1.5 py-0.5 bg-rose-100 text-rose-800 text-[9px] font-bold uppercase rounded tracking-wider shrink-0 mt-0.5">
+                      {language === "BM" ? "Perlu Semakan" : "Need Review"}
+                    </span>
+                    <p className="text-[11px] leading-relaxed">
+                      {language === "BM"
+                        ? "Peringatan: Bacaan resit mengesan maklumat tidak lengkap atau meragukan. Sila sahkan semua butiran."
+                        : "Reminder: The scanned receipt contains missing or ambiguous details. Please double-check all fields."}
+                    </p>
+                  </div>
+                )}
+                {ocrConfidenceNote && (
+                  <div className="flex gap-2 items-start border-t border-neutral-200/40 pt-2 text-[11px] text-neutral-500 italic">
+                    <span>{ocrConfidenceNote}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Merchant Name */}
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-neutral-600">
@@ -1828,25 +2022,25 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
                 {language === "BM" ? "Status Tuntutan Malaysia" : "Malaysian Claim Status"} <span className="text-red-500">*</span>
               </label>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 w-full">
                 {[
                   { 
                     id: ClaimStatus.Claimable, 
-                    label: language === "BM" ? t("common", "statusClaimable") : "Claimable", 
-                    style: "border-teal-brand/35 bg-[#F1FBF9] text-teal-brand hover:bg-teal-brand/10",
-                    activeStyle: "border-teal-brand bg-teal-brand text-white rounded-xl ring-2 ring-teal-brand/20 shadow-xs"
+                    label: language === "BM" ? "Boleh Dituntut" : "Claimable", 
+                    style: "border-teal-brand/30 bg-[#EAFDF5] text-teal-brand hover:bg-[#D1FAE5]/60",
+                    activeStyle: "border-teal-brand bg-teal-brand text-white shadow-3xs"
                   },
                   { 
                     id: ClaimStatus.CheckAgain, 
-                    label: language === "BM" ? "Perlu Semak" : "Needs Review", 
-                    style: "border-amber-brand/35 bg-[#FFFDF5] text-amber-brand hover:bg-[#FFFDF5]",
-                    activeStyle: "border-amber-brand bg-amber-brand text-white rounded-xl ring-2 ring-amber-brand/30 shadow-xs"
+                    label: language === "BM" ? "Perlu Semakan" : "Need Review", 
+                    style: "border-amber-300/30 bg-[#FFFBEB] text-amber-700 hover:bg-[#FEF3C7]/60",
+                    activeStyle: "border-[#FBBF24] bg-[#FBBF24] text-[#09244A] shadow-3xs"
                   },
                   { 
                     id: ClaimStatus.NonClaimable, 
-                    label: language === "BM" ? t("common", "statusNonClaimable") : "Not-eligible", 
-                    style: "border-neutral-200 bg-neutral-50 text-neutral-500 hover:bg-neutral-100",
-                    activeStyle: "border-neutral-700 bg-neutral-800 text-white rounded-xl shadow-xs"
+                    label: language === "BM" ? "Tidak Layak" : "Not Eligible", 
+                    style: "border-neutral-300/30 bg-[#F8FAFC] text-neutral-500 hover:bg-neutral-100/60",
+                    activeStyle: "border-neutral-500 bg-neutral-500 text-white shadow-3xs"
                   }
                 ].map((pill) => {
                   const isSelected = claimStatus === pill.id;
@@ -1858,8 +2052,8 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
                         setClaimStatus(pill.id);
                         if (errors.claimStatus) setErrors(prev => ({ ...prev, claimStatus: "" }));
                       }}
-                      className={`h-11 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center justify-center text-center ${
-                        isSelected ? pill.activeStyle : `${pill.style} border-neutral-200`
+                      className={`h-10 px-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center text-center ${
+                        isSelected ? pill.activeStyle : pill.style
                       }`}
                     >
                       {pill.label}

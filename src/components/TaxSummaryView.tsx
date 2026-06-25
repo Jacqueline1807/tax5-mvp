@@ -19,6 +19,8 @@ import {
   Sparkles
 } from "lucide-react";
 import { Receipt, ClaimCategory, ClaimStatus, CATEGORY_LIMITS, SmartSetupData } from "../types";
+import { taxReliefGuidelines } from "../data/taxReliefGuidelines";
+import { normalizeGuidelineCode, calculateCompletionStatus } from "../utils/suggestionEngine";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import JSZip from "jszip";
@@ -222,8 +224,16 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
   };
 
   claimableReceipts.forEach((r) => {
-    if (categoryTotals[r.category] !== undefined) {
-      categoryTotals[r.category] += r.amount;
+    let cat = r.category;
+    if (r.formBEItem) {
+      const bCode = normalizeGuidelineCode(r.formBEItem);
+      const gl = taxReliefGuidelines[bCode];
+      if (gl && gl.suggestedAppCategory) {
+        cat = gl.suggestedAppCategory;
+      }
+    }
+    if (categoryTotals[cat] !== undefined) {
+      categoryTotals[cat] += r.amount;
     }
   });
 
@@ -243,10 +253,13 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
 
   // Helper to scroll to Section G Guide
   const handleViewDraftGuide = () => {
-    const el = document.getElementById("section-g-guide");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
+    setIsBEGuideExpanded(true);
+    setTimeout(() => {
+      const el = document.getElementById("section-g-guide");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
   };
 
   // PDF file downloader helper
@@ -463,50 +476,42 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       22.5
     );
 
-    // Disclaimer Block - Compact
+    // Disclaimer Block - Compact with proper multiline calculation
+    const disclaimerY = 29;
+    const disclaimerText = language === "BM"
+      ? "Pembantu draf pra-pemfailan Tax5. Ini BUKAN Borang BE LHDN yang rasmi. Sahkan semua pengiraan sebelum penyerahan e-Filing akhir."
+      : "Tax5 pre-filing draft helper. This is NOT the official LHDN Form BE. Verify all calculations before final e-Filing submission.";
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.0);
+    const disclaimerLines = doc.splitTextToSize(disclaimerText, 122);
+    const disclaimerBoxHeight = Math.max(10, 6 + disclaimerLines.length * 4.2);
+
     doc.setFillColor(254, 252, 244); // light warning bg
     doc.setDrawColor(217, 119, 6); // amber border
     doc.setLineWidth(0.3);
-    doc.rect(15, 29, 180, 7, "FD");
+    doc.rect(15, disclaimerY, 180, disclaimerBoxHeight, "FD");
 
     doc.setTextColor(180, 83, 9); // deep amber text
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
+    doc.setFontSize(8.0);
     doc.text(
       language === "BM" ? "NOTIS PENTING & PENAFIAN:" : "IMPORTANT NOTICE & DISCLAIMER:", 
       18, 
-      33.5
-    );
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.text(
-      language === "BM"
-        ? "Pembantu draf pra-pemfailan Tax5. Ini BUKAN Borang BE LHDN yang rasmi. Sahkan semua pengiraan sebelum penyerahan e-Filing akhir."
-        : "Tax5 pre-filing draft helper. This is NOT the official LHDN Form BE. Verify all calculations before final e-Filing submission.", 
-      language === "BM" ? 56 : 68, 
-      33.5
+      disclaimerY + 5.5
     );
 
-    // Profile details resolution
-    let realName = smartSetup?.fullName || "";
-    let realEmail = smartSetup?.email || "";
-    if (!realName || !realEmail) {
-      if (currentUser && !currentUser.isDemo) {
-        if (!realName) realName = currentUser.name;
-        if (!realEmail) realEmail = currentUser.email;
-      } else {
-        try {
-          const rawUser = localStorage.getItem("tax5_simulated_user");
-          if (rawUser) {
-            const parsed = JSON.parse(rawUser);
-            if (!realName && parsed.name) realName = parsed.name;
-            if (!realEmail && parsed.email) realEmail = parsed.email;
-          }
-        } catch (e) {}
-      }
-    }
-    if (!realName) realName = "Not provided";
-    if (!realEmail) realEmail = "Not provided";
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.0);
+    doc.text(
+      disclaimerLines, 
+      language === "BM" ? 58 : 72, 
+      disclaimerY + 5.5,
+      { lineHeightFactor: 1.5 }
+    );
+
+    const disclaimerBottomY = disclaimerY + disclaimerBoxHeight;
+    let currentY = disclaimerBottomY + 8.0;
 
     const assessmentType = (() => {
       if (!smartSetup) return "Needs review";
@@ -574,88 +579,88 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       return assessmentType;
     })();
 
-    // Shared Form BE Theme Style with grey label headers and black/dark-grey outline borders
-    const formBeThemeStyles: any = {
+    // Shared table style configuration to guarantee page-wide consistency
+    const sharedTableStyles: any = {
       theme: "plain",
-      styles: { fontSize: 7, cellPadding: 1.2, font: "helvetica", textColor: [20, 20, 20], lineColor: [140, 145, 150], lineWidth: 0.18 },
-      headStyles: { fillColor: [232, 235, 238], fontStyle: "bold", textColor: [9, 36, 74], lineColor: [140, 145, 150], lineWidth: 0.18 },
+      styles: { 
+        fontSize: 8.0, 
+        cellPadding: 2.4, 
+        font: "helvetica", 
+        textColor: [20, 20, 20], 
+        lineColor: [140, 145, 150], 
+        lineWidth: 0.18,
+        overflow: "linebreak"
+      },
+      headStyles: { 
+        fillColor: [232, 235, 238], 
+        fontStyle: "bold", 
+        textColor: [9, 36, 74], 
+        lineColor: [140, 145, 150], 
+        lineWidth: 0.18, 
+        fontSize: 8.5 
+      },
     };
 
-    // B. BASIC PARTICULARS
+    // Standard local section header drawer for complete visual rhythm
+    const drawSectionHeader = (title: string, y: number) => {
+      doc.setTextColor(9, 36, 74);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.text(title, 15, y);
+      doc.setDrawColor(180, 185, 190);
+      doc.setLineWidth(0.25);
+      doc.line(15, y + 2.0, 195, y + 2.0);
+      return y + 7.0;
+    };
+
+    // SECTION 1: Tax Filing Context
+    currentY = drawSectionHeader(
+      language === "BM" ? "SEKSYEN 1: KONTEKS PEMFAILAN CUKAI" : "SECTION 1: TAX FILING CONTEXT",
+      currentY
+    );
+
+    const draftSetupBody: any[] = [];
+    draftSetupBody.push([
+      "1",
+      language === "BM" ? "Tahun Taksiran" : "Year of Assessment",
+      smartSetup?.yearOfAssessment || "YA 2026"
+    ]);
+
+    draftSetupBody.push([
+      "2",
+      language === "BM" ? "Jenis Taksiran" : "Type of Assessment",
+      translatedAssessmentType
+    ]);
+
     autoTable(doc, {
-      startY: 39,
+      startY: currentY,
       margin: { left: 15, right: 15 },
-      head: [[{ content: language === "BM" ? "BUTIRAN ASAS" : "BASIC PARTICULARS", colSpan: 4 }]],
-      body: [
-        ["1", language === "BM" ? "Nama (Seperti di dalam dokumen pengenalan)" : "Name (As per identification document)", { content: realName, colSpan: 2, styles: { fontStyle: "bold" } }],
-        ["2", language === "BM" ? "No. Pengenalan Cukai (TIN)" : "Tax Identification No. (TIN)", { content: smartSetup?.tin || (language === "BM" ? "Tidak disediakan" : "Not provided"), colSpan: 2 }],
-        ["3", language === "BM" ? "No. Kad Pengenalan / MyKad / Pasport" : "Identification No. / MyKad / Passport", smartSetup?.identificationNumber || (language === "BM" ? "Tidak disediakan" : "Not provided"), "5", language === "BM" ? `Pasport didaftarkan dengan LHDNM: ${smartSetup?.identificationNumber ? "Ya" : "Tidak disediakan"}` : `Passport registered with LHDNM: ${smartSetup?.identificationNumber ? "Yes" : "Not provided"}`],
-        ["4", language === "BM" ? "Alamat E-mel" : "Email Address", { content: realEmail, colSpan: 2 }, language === "BM" ? "Tahun Taksiran" : "Year of Assessment", smartSetup?.yearOfAssessment || "YA 2026"]
-      ],
-      ...formBeThemeStyles,
+      body: draftSetupBody,
+      ...sharedTableStyles,
       columnStyles: {
-        0: { cellWidth: 8, fontStyle: "bold", textColor: [9, 36, 74] },
-        1: { cellWidth: 55, fontStyle: "bold" },
-        2: { cellWidth: 60 }
-      }
-    } as any);
-
-    const genderVal = smartSetup?.gender === "Male" ? (language === "BM" ? "Lelaki" : "Male") : smartSetup?.gender === "Female" ? (language === "BM" ? "Perempuan" : "Female") : (language === "BM" ? "Tidak disediakan / Tiada spesifikasi" : "Not provided / Unspecified");
-    const maritalVal = (() => {
-      const val = smartSetup?.maritalStatus;
-      if (!val) return language === "BM" ? "Tidak disediakan" : "Not provided";
-      if (language === "BM") {
-        if (val === "Single") return "Bujang";
-        if (val === "Married") return "Kahwin";
-        if (val === "Divorced") return "Bercerai";
-        if (val === "Widowed") return "Balu / Duda";
-      }
-      return val;
-    })();
-    const citizenVal = smartSetup?.salariedBE === "No" ? (language === "BM" ? "Bukan Pemastautin" : "Non-Resident") : (language === "BM" ? "MYS / Individu Pemastautin" : "MYS / Resident Individual");
-
-    // C. PART A: PARTICULARS OF INDIVIDUAL
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 3,
-      margin: { left: 15, right: 15 },
-      head: [[{ content: language === "BM" ? "BAHAGIAN A: BUTIRAN PERIBADI INDIVIDU" : "PART A: PARTICULARS OF INDIVIDUAL", colSpan: 5 }]],
-      body: [
-        ["A1", language === "BM" ? "Status Warganegara / Pemastautin" : "Citizen Status / Resident", citizenVal, "A2", `${language === "BM" ? "Jantina" : "Gender"}: ${genderVal}`],
-        ["A3", language === "BM" ? "Tarikh Lahir" : "Date of Birth", smartSetup?.dateOfBirth || (language === "BM" ? "Tidak disediakan" : "Not provided"), "A4", `${language === "BM" ? "Status pada 31-12-2025" : "Status as at 31-12-2025"}: ${maritalVal}`],
-        ["A5", language === "BM" ? "Situasi Pasangan" : "Spouse Situation", smartSetup?.spouseSituation || (language === "BM" ? "Tidak disediakan" : "Not provided"), "A6", `${language === "BM" ? "Jenis taksiran" : "Type of assessment"}: ${translatedAssessmentType}`]
-      ],
-      ...formBeThemeStyles,
-      columnStyles: {
-        0: { cellWidth: 8, fontStyle: "bold", textColor: [9, 36, 74] },
-        1: { cellWidth: 44, fontStyle: "bold" },
-        2: { cellWidth: 50 },
-        3: { cellWidth: 8, fontStyle: "bold", textColor: [9, 36, 74] }
-      }
-    } as any);
-
-    // D. EMPLOYMENT RECORDS / EA SUMMARY Table (Always on Page 1)
-    let eaBody = [];
-    let eaHeaders = [];
-    let eaColStyles: any = {};
-    if (employers.length === 0) {
-      eaHeaders = language === "BM"
-        ? [["Kod Item", "Rekod / Kategori", "Butiran / Nilai"]]
-        : [["Item Code", "Record / Category", "Details / Value"]];
-      eaBody = [
-        ["B1", language === "BM" ? "Pendapatan penggajian" : "Employment income", language === "BM" ? "Tidak disediakan" : "Not provided"],
-        ["B1a", language === "BM" ? "Bilangan penggajian" : "Number of employments", "0"],
-        ["Status", language === "BM" ? "Status Borang EA" : "EA Form Status", language === "BM" ? "Butiran borang EA belum ditambah" : "EA form details not added yet"]
-      ];
-      eaColStyles = {
-        0: { cellWidth: 20, fontStyle: "bold", textColor: [9, 36, 74] },
+        0: { cellWidth: 10, fontStyle: "bold", textColor: [9, 36, 74] },
         1: { cellWidth: 60, fontStyle: "bold" },
-        2: { cellWidth: 100 }
-      };
-    } else {
-      eaHeaders = language === "BM"
+        2: { cellWidth: 110 }
+      }
+    } as any);
+
+    currentY = (doc as any).lastAutoTable.finalY + 12.0;
+
+    // SECTION 2: Employment Income Summary (Only if EA/EC data exists)
+    if (employers.length > 0) {
+      if (currentY > 230) {
+        doc.addPage();
+        currentY = 20;
+      }
+      currentY = drawSectionHeader(
+        language === "BM" ? "SEKSYEN 2: RINGKASAN PENDAPATAN PENGGAJIAN" : "SECTION 2: EMPLOYMENT INCOME SUMMARY",
+        currentY
+      );
+
+      const eaHeaders = language === "BM"
         ? [["Ruj", "Nama Majikan", "Ruj TIN", "Tempoh Pekerjaan", "Gaji Pekerjaan", "MTD PCB", "Status"]]
         : [["Ref", "Employer Name", "TIN Ref", "Period of Employment", "Employment Wages", "MTD PCB", "Status"]];
-      eaBody = employers.map((emp, index) => [
+      const eaBody = employers.map((emp, index) => [
         `${(emp.docType || "EA").toUpperCase().replace(" FORM", "")} #${index + 1}`,
         emp.name,
         emp.tin || (language === "BM" ? "Tidak disediakan" : "Not provided"),
@@ -664,27 +669,77 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         `RM${emp.mtd.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         language === "BM" ? `Cukai Ditanggung: ${emp.taxBorne === "Yes" ? "Ya" : emp.taxBorne === "No" ? "Tidak" : "Kurang Pasti"}` : `Tax Borne: ${emp.taxBorne}`
       ]);
-      eaColStyles = {
-        0: { cellWidth: 12, fontStyle: "bold", textColor: [9, 36, 74] },
+      const eaColStyles = {
+        0: { cellWidth: 15, fontStyle: "bold", textColor: [9, 36, 74] },
         1: { fontStyle: "bold", cellWidth: 38 },
         2: { cellWidth: 20 },
         3: { cellWidth: 32 },
         4: { fontStyle: "bold", cellWidth: 26 },
         5: { fontStyle: "bold", cellWidth: 22 },
-        6: { cellWidth: 30 }
+        6: { cellWidth: 27 }
       };
+
+      autoTable(doc, {
+        startY: currentY,
+        margin: { left: 15, right: 15 },
+        head: eaHeaders,
+        body: eaBody,
+        ...sharedTableStyles,
+        columnStyles: eaColStyles
+      } as any);
+
+      currentY = (doc as any).lastAutoTable.finalY + 12.0;
     }
 
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 3,
-      margin: { left: 15, right: 15 },
-      head: eaHeaders,
-      body: eaBody,
-      ...formBeThemeStyles,
-      columnStyles: eaColStyles
-    } as any);
+    // PDF local calculations that include "Need Review" (CheckAgain) status receipts in the draft estimation
+    const pdfCategoryTotals: Record<ClaimCategory, number> = {
+      [ClaimCategory.Lifestyle]: 0,
+      [ClaimCategory.Medical]: 0,
+      [ClaimCategory.Education]: 0,
+      [ClaimCategory.Sports]: 0,
+      [ClaimCategory.Insurance]: 0,
+      [ClaimCategory.Other]: 0,
+    };
 
-    // Helper math values for Part BA, PART BC, Part G
+    const pdfCheckAgainByCategory: Record<ClaimCategory, number> = {
+      [ClaimCategory.Lifestyle]: 0,
+      [ClaimCategory.Medical]: 0,
+      [ClaimCategory.Education]: 0,
+      [ClaimCategory.Sports]: 0,
+      [ClaimCategory.Insurance]: 0,
+      [ClaimCategory.Other]: 0,
+    };
+
+    receipts.forEach((r) => {
+      if (r.claimStatus === ClaimStatus.Claimable || r.claimStatus === ClaimStatus.CheckAgain) {
+        let cat = r.category;
+        if (r.formBEItem) {
+          const bCode = normalizeGuidelineCode(r.formBEItem);
+          const gl = taxReliefGuidelines[bCode];
+          if (gl && gl.suggestedAppCategory) {
+            cat = gl.suggestedAppCategory;
+          }
+        }
+        if (pdfCategoryTotals[cat] !== undefined) {
+          pdfCategoryTotals[cat] += r.amount;
+        }
+        if (r.claimStatus === ClaimStatus.CheckAgain && pdfCheckAgainByCategory[cat] !== undefined) {
+          pdfCheckAgainByCategory[cat] += r.amount;
+        }
+      }
+    });
+
+    const pdfCappedCategoryTotals: Record<ClaimCategory, number> = {
+      [ClaimCategory.Lifestyle]: Math.min(pdfCategoryTotals[ClaimCategory.Lifestyle], CATEGORY_LIMITS[ClaimCategory.Lifestyle].limit),
+      [ClaimCategory.Medical]: Math.min(pdfCategoryTotals[ClaimCategory.Medical], CATEGORY_LIMITS[ClaimCategory.Medical].limit),
+      [ClaimCategory.Education]: Math.min(pdfCategoryTotals[ClaimCategory.Education], CATEGORY_LIMITS[ClaimCategory.Education].limit),
+      [ClaimCategory.Sports]: Math.min(pdfCategoryTotals[ClaimCategory.Sports], CATEGORY_LIMITS[ClaimCategory.Sports].limit),
+      [ClaimCategory.Insurance]: Math.min(pdfCategoryTotals[ClaimCategory.Insurance], CATEGORY_LIMITS[ClaimCategory.Insurance].limit),
+      [ClaimCategory.Other]: Math.min(pdfCategoryTotals[ClaimCategory.Other], CATEGORY_LIMITS[ClaimCategory.Other].limit),
+    };
+
+    const pdfTotalCappedClaim = Object.values(pdfCappedCategoryTotals).reduce((sum, val) => sum + val, 0);
+
     const checkedContributions = smartSetup?.availableContributions || [];
     const hasSocso = checkedContributions.includes("SOCSO / PERKESO");
     const hasEis = checkedContributions.includes("EIS / SIP");
@@ -695,90 +750,111 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     const epfVal = smartSetup?.epfAmount && !isNaN(parseFloat(smartSetup.epfAmount)) ? parseFloat(smartSetup.epfAmount) : 0;
     const epfCapped = Math.min(epfVal, 4000);
 
-    // SSPN claim calculation
-    const sspnReceiptAmount = receipts
+    const pdfSspnReceiptAmount = receipts
       ? receipts
-          .filter(r => r.claimStatus === ClaimStatus.Claimable && (r.formBEItem === "G13" || (r.tax5DisplayName || "").toLowerCase().includes("sspn") || (r.notes || "").toLowerCase().includes("sspn") || (r.merchant || "").toLowerCase().includes("sspn")))
+          .filter(r => (r.claimStatus === ClaimStatus.Claimable || r.claimStatus === ClaimStatus.CheckAgain) && (r.formBEItem === "G13" || (r.tax5DisplayName || "").toLowerCase().includes("sspn") || (r.notes || "").toLowerCase().includes("sspn") || (r.merchant || "").toLowerCase().includes("sspn")))
           .reduce((sum, r) => sum + r.amount, 0)
       : 0;
-    const sspnCapped = Math.min(sspnReceiptAmount, 8000);
+
+    const pdfSspnNeedReviewAmount = receipts
+      ? receipts
+          .filter(r => r.claimStatus === ClaimStatus.CheckAgain && (r.formBEItem === "G13" || (r.tax5DisplayName || "").toLowerCase().includes("sspn") || (r.notes || "").toLowerCase().includes("sspn") || (r.merchant || "").toLowerCase().includes("sspn")))
+          .reduce((sum, r) => sum + r.amount, 0)
+      : 0;
+
+    const pdfSspnCapped = Math.min(pdfSspnReceiptAmount, 8000);
 
     const hasSpouseRelief = smartSetup?.maritalStatus === "Married" && smartSetup?.spouseAssessmentChoice === "My spouse has no income";
     const spouseReliefAmount = hasSpouseRelief ? 4000 : 0;
 
-    const totalReliefVal = 9000 + totalCappedClaim + epfCapped + totalG20 + sspnCapped + spouseReliefAmount;
+    const pdfTotalReliefVal = 9000 + pdfTotalCappedClaim + epfCapped + totalG20 + pdfSspnCapped + spouseReliefAmount;
 
     const hasIncomeDetails = employers.length > 0 || (!!smartSetup?.annualEmploymentIncome && parseFloat(smartSetup.annualEmploymentIncome) > 0);
-    const calculatedChargeableIncome = hasIncomeDetails ? Math.max(0, totalIncome - totalReliefVal) : 0;
+    const pdfCalculatedChargeableIncome = hasIncomeDetails ? Math.max(0, totalIncome - pdfTotalReliefVal) : 0;
 
     // LHDN YA 2025 Tax Bracket Calculator
-    let estimatedTax = 0;
-    if (hasIncomeDetails && calculatedChargeableIncome > 5000) {
-      if (calculatedChargeableIncome <= 20000) {
-        estimatedTax = (calculatedChargeableIncome - 5000) * 0.01;
-      } else if (calculatedChargeableIncome <= 35000) {
-        estimatedTax = 150 + (calculatedChargeableIncome - 20000) * 0.03;
-      } else if (calculatedChargeableIncome <= 50000) {
-        estimatedTax = 600 + (calculatedChargeableIncome - 35000) * 0.06;
-      } else if (calculatedChargeableIncome <= 70000) {
-        estimatedTax = 1500 + (calculatedChargeableIncome - 50000) * 0.11;
-      } else if (calculatedChargeableIncome <= 100000) {
-        estimatedTax = 3700 + (calculatedChargeableIncome - 70000) * 0.19;
-      } else if (calculatedChargeableIncome <= 400000) {
-        estimatedTax = 9400 + (calculatedChargeableIncome - 100000) * 0.25;
+    let pdfEstimatedTax = 0;
+    if (hasIncomeDetails && pdfCalculatedChargeableIncome > 5000) {
+      if (pdfCalculatedChargeableIncome <= 20000) {
+        pdfEstimatedTax = (pdfCalculatedChargeableIncome - 5000) * 0.01;
+      } else if (pdfCalculatedChargeableIncome <= 35000) {
+        pdfEstimatedTax = 150 + (pdfCalculatedChargeableIncome - 20000) * 0.03;
+      } else if (pdfCalculatedChargeableIncome <= 50000) {
+        pdfEstimatedTax = 600 + (pdfCalculatedChargeableIncome - 35000) * 0.06;
+      } else if (pdfCalculatedChargeableIncome <= 70000) {
+        pdfEstimatedTax = 1500 + (pdfCalculatedChargeableIncome - 50000) * 0.11;
+      } else if (pdfCalculatedChargeableIncome <= 100000) {
+        pdfEstimatedTax = 3700 + (pdfCalculatedChargeableIncome - 70000) * 0.19;
+      } else if (pdfCalculatedChargeableIncome <= 400000) {
+        pdfEstimatedTax = 9400 + (pdfCalculatedChargeableIncome - 100000) * 0.25;
       } else {
-        estimatedTax = 84400 + (calculatedChargeableIncome - 400000) * 0.26;
+        pdfEstimatedTax = 84400 + (pdfCalculatedChargeableIncome - 400000) * 0.26;
       }
     }
 
     // Individual rebate RM400 for chargeable income <= RM35,000
-    if (hasIncomeDetails && calculatedChargeableIncome <= 35000 && calculatedChargeableIncome > 0) {
-      estimatedTax = Math.max(0, estimatedTax - 400);
+    if (hasIncomeDetails && pdfCalculatedChargeableIncome <= 35000 && pdfCalculatedChargeableIncome > 0) {
+      pdfEstimatedTax = Math.max(0, pdfEstimatedTax - 400);
     }
 
-    const netDiff = hasIncomeDetails ? estimatedTax - totalMtd : 0;
+    const pdfNetDiff = hasIncomeDetails ? pdfEstimatedTax - totalMtd : 0;
 
-    // Continuous flow on Page 1: B13 / B14 / B27 PREPARATION SUMMARY & DETAILED EXPLANATION NOTE
-    let currentY = (doc as any).lastAutoTable.finalY + 3;
+    // SECTION 3: Part BA: Computation of Tax Preparation
+    if (currentY > 225) {
+      doc.addPage();
+      currentY = 20;
+    }
+    currentY = drawSectionHeader(
+      language === "BM" ? "SEKSYEN 3: BAHAGIAN BA - PENGIRAAN PERSEDIAAN CUKAI" : "SECTION 3: PART BA - COMPUTATION OF TAX PREPARATION",
+      currentY
+    );
 
-    // D. PART BA: COMPUTATION OF CHARGEABLE INCOME PREPARATION
-    let baBody = [];
-    baBody = [
+    const baBody = [
       ["B1", language === "BM" ? "Pendapatan berkanun daripada sumber penggajian di Malaysia" : "Statutory income from sources of employment in Malaysia", { content: hasIncomeDetails ? `RM${totalIncome.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : (language === "BM" ? "Tidak disediakan" : "Not provided"), styles: { fontStyle: "normal" } }],
       ["B1a", language === "BM" ? "Bilangan penggajian" : "Number of employments", { content: hasIncomeDetails ? String(numEmployments) : (language === "BM" ? "Tiada rekod" : "No records"), styles: { fontStyle: "normal" } }],
-      ["B13", language === "BM" ? "Jumlah Pemindahan Pelepasan (Pindahan dari Item G23)" : "Total Relief Transfer (Transfer from Item G23)", { content: `RM${totalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: "bold" } }],
-      ["B14", language === "BM" ? "Anggaran Deraf Pendapatan Bercukai (B1 tolak subjumlah B13)" : "Chargeable Income Draft Estimate (B1 minus B13 subtotal)", { content: hasIncomeDetails ? `RM${calculatedChargeableIncome.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : (language === "BM" ? "Tidak dikira" : "Not calculated"), styles: { fontStyle: "bold" } }]
+      ["B13", language === "BM" ? "Jumlah Pemindahan Pelepasan (Pindahan dari Item G23)" : "Total Relief Transfer (Transfer from Item G23)", { content: `RM${pdfTotalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, styles: { fontStyle: "bold" } }],
+      ["B14", language === "BM" ? "Anggaran Deraf Pendapatan Bercukai (B1 tolak subjumlah B13)" : "Chargeable Income Draft Estimate (B1 minus B13 subtotal)", { content: hasIncomeDetails ? `RM${pdfCalculatedChargeableIncome.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : (language === "BM" ? "Tidak dikira" : "Not calculated"), styles: { fontStyle: "bold" } }]
     ];
 
     autoTable(doc, {
       startY: currentY,
       margin: { left: 15, right: 15 },
-      head: [[{ content: language === "BM" ? "BAHAGIAN BA: PENGIRAAN PERSEDIAAN CUKAI" : "PART BA: COMPUTATION of tax PREPARATION", colSpan: 3 }]],
       body: baBody,
-      ...formBeThemeStyles,
+      ...sharedTableStyles,
       columnStyles: {
         0: { cellWidth: 12, fontStyle: "bold", textColor: [9, 36, 74] },
         1: { cellWidth: 120, fontStyle: "bold" },
-        2: { cellWidth: 48, textColor: [9, 36, 74] } // regular font weight (not bold)
+        2: { cellWidth: 48, textColor: [9, 36, 74] }
       }
     } as any);
 
-    // E. PART BC: TAX PAYABLE / REPAYABLE PREPARATION
+    currentY = (doc as any).lastAutoTable.finalY + 12.0;
+
+    // SECTION 4: Part BC: Estimated Deduction & Tax Payable Preparation
+    if (currentY > 225) {
+      doc.addPage();
+      currentY = 20;
+    }
+    currentY = drawSectionHeader(
+      language === "BM" ? "SEKSYEN 4: BAHAGIAN BC - ANGGARAN POTONGAN & CUKAI DIKENAKAN" : "SECTION 4: PART BC - ESTIMATED DEDUCTION & TAX PAYABLE PREPARATION",
+      currentY
+    );
+
     const bcStatusVal = (() => {
       if (!hasIncomeDetails) {
         return language === "BM" 
           ? "Tidak dikira - masukkan butiran akhir dalam LHDN/MyTax" 
           : "Not calculated - enter final details in LHDN/MyTax";
       }
-      if (netDiff < 0) {
+      if (pdfNetDiff < 0) {
         return language === "BM"
-          ? `Boleh Dituntut (Bayaran Balik): RM${Math.abs(netDiff).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-          : `Repayable (Refund): RM${Math.abs(netDiff).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          ? `Boleh Dituntut (Bayaran Balik): RM${Math.abs(pdfNetDiff).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : `Repayable (Refund): RM${Math.abs(pdfNetDiff).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
-      if (netDiff > 0) {
+      if (pdfNetDiff > 0) {
         return language === "BM"
-          ? `Anggaran Baki Perlu Dibayar: RM${netDiff.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-          : `Estimated Balance Payable: RM${netDiff.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          ? `Anggaran Baki Perlu Dibayar: RM${pdfNetDiff.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : `Estimated Balance Payable: RM${pdfNetDiff.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       }
       return language === "BM" ? "Baki Sifar (Tiada cukai kena dibayar)" : "Zero Balance (No tax due)";
     })();
@@ -789,223 +865,396 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
     ];
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 3,
+      startY: currentY,
       margin: { left: 15, right: 15 },
-      head: [[{ content: language === "BM" ? "BAHAGIAN BC: STATUS ANGGARAN CUKAI PERSEDIAAN" : "PART BC: EST. DEDUCTION & TAX PAYABLE PREPARATION", colSpan: 3 }]],
       body: bcBody,
-      ...formBeThemeStyles,
+      ...sharedTableStyles,
       columnStyles: {
         0: { cellWidth: 12, fontStyle: "bold", textColor: [9, 36, 74] },
         1: { cellWidth: 120, fontStyle: "bold" },
-        2: { cellWidth: 48, textColor: [9, 36, 74] } // regular font weight (not bold)
+        2: { cellWidth: 48, textColor: [9, 36, 74] }
       }
     } as any);
 
-    // Compact Total Relief Explanation Note Strip underneath Part BA / Part BC tables
-    let yNote = (doc as any).lastAutoTable.finalY + 3;
+    currentY = (doc as any).lastAutoTable.finalY + 12.0;
+
+    // SECTION 5: Total Relief Composition Note
+    if (currentY > 225) {
+      doc.addPage();
+      currentY = 20;
+    }
+    currentY = drawSectionHeader(
+      language === "BM" ? "SEKSYEN 5: NOTA KOMPOSISI JUMLAH PELEPASAN" : "SECTION 5: TOTAL RELIEF COMPOSITION NOTE",
+      currentY
+    );
+
+    // Build the clean custom wording note based on actual totals
+    const isNeedReviewExist = receipts.some(r => r.claimStatus === ClaimStatus.CheckAgain);
+    const noteText = language === "BM"
+      ? `Jumlah tuntutan draf resit Tax5 ialah RM${pdfTotalCappedClaim.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Anggaran pelepasan termasuk pelepasan automatik seperti individu G1, KWSP, SOCSO/EIS, dan SSPN.${isNeedReviewExist ? " Anggaran pelepasan mungkin termasuk resit yang kini ditandakan sebagai Perlu Semak, berdasarkan persediaan draf semasa. Kelayakan akhir masih perlu disahkan sebelum penyerahan muktamad." : ""}`
+      : `Tax5 draft receipt claim total is RM${pdfTotalCappedClaim.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Estimated relief includes automatic items such as G1 individual, EPF, SOCSO/EIS, and SSPN.${isNeedReviewExist ? " Estimated relief may include receipts currently marked Needs Review, based on the current draft setup. Final eligibility must still be verified before final submission." : ""}`;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.0);
+    const noteLines = doc.splitTextToSize(noteText, 172);
+    const noteBoxHeight = 4.5 + (noteLines.length * 3.5);
+
     doc.setFillColor(245, 246, 248);
     doc.setDrawColor(200, 205, 210);
     doc.setLineWidth(0.25);
-    doc.rect(15, yNote, 180, 11, "FD");
-
-    doc.setTextColor(9, 36, 74);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.text(
-      language === "BM" ? "NOTA KOMPOSISI JUMLAH PELEPASAN:" : "TOTAL RELIEF COMPOSITION NOTE:", 
-      18, 
-      yNote + 3.5
-    );
+    doc.rect(15, currentY, 180, noteBoxHeight, "FD");
 
     doc.setTextColor(80, 90, 100);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    const noteText = language === "BM"
-      ? `Nota: Jumlah tuntutan resit Tax5 ialah RM${totalCappedClaim.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Anggaran jumlah pelepasan Borang BE ialah RM${totalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kerana pelepasan individu G1 bernilai RM9,000.00 disertakan secara automatik. Potongan profil seperti KWSP dan PERKESO(SOCSO)/SIP(EIS) ialah RM${(epfCapped + totalG20).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} dan SSPN ialah RM${sspnCapped.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`
-      : `Note: Tax5 receipt claim total is RM${totalCappedClaim.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Estimated Form BE total relief is RM${totalReliefVal.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} because G1 individual relief of RM9,000.00 is included automatically. Profile deductions such as EPF and SOCSO/EIS are RM${(epfCapped + totalG20).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} and SSPN is RM${sspnCapped.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
-    const noteLines = doc.splitTextToSize(noteText, 172);
-    doc.text(noteLines, 18, yNote + 6.8);
+    doc.text(noteLines, 18, currentY + 4.0, { lineHeightFactor: 1.25 });
 
-    // Force Page break to present Part G (Reliefs breakdown) beautifully on Page 2
-    doc.addPage();
-    currentY = 20;
+    currentY = currentY + noteBoxHeight + 12.0;
 
-    // F. PART G: RELIEF
-    doc.setTextColor(9, 36, 74);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text(
-      language === "BM"
-        ? "BAHAGIAN G: PELEPASAN & KATEGORI TUNTUTAN TERPETA (PELEPASAN CUKAI DIISYTIHARKAN)"
-        : "PART G: RELIEF & MAPPED CLAIM CATEGORIES (DECLARED TAX RELIEFS)", 
-      15, 
+    // Smart page break to present Part G beautifully and compactly
+    if (currentY > 215) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    // SECTION 6: Part G - Relief & Mapped Claim Categories
+    currentY = drawSectionHeader(
+      language === "BM" ? "SEKSYEN 6: BAHAGIAN G - PELEPASAN & KATEGORI TUNTUTAN TERPETA" : "SECTION 6: PART G - RELIEF & MAPPED CLAIM CATEGORIES",
       currentY
     );
-    doc.setDrawColor(180, 185, 190);
-    doc.line(15, currentY + 2, 195, currentY + 2);
-    currentY += 5;
 
     const formatRM = (val: number) => `RM${val.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    const reliefRows = [
-      [
-        "G1", 
-        language === "BM" ? "Pelepasan Individu (Automatik)" : "Individual Relief (Automatic)", 
-        "RM9,000.00", 
-        "RM9,000.00", 
-        "RM9,000.00", 
-        language === "BM" ? "Pelepasan peribadi automatik disertakan untuk anggaran gaya Borang BE." : "Automatic personal relief included for Form BE-style estimate."
-      ],
-      [
-        "G5", 
-        language === "BM" ? "Pendidikan" : "Education", 
-        formatRM(categoryTotals[ClaimCategory.Education] || 0), 
-        formatRM(CATEGORY_LIMITS[ClaimCategory.Education].limit), 
-        formatRM(cappedCategoryTotals[ClaimCategory.Education] || 0), 
-        language === "BM" ? "Kursus pengajian sendiri dan pengajian ijazah." : "Self study courses and degrees study."
-      ],
-      ...(hasSpouseRelief ? [
-        [
-          "G5 Sp", 
-          language === "BM" ? "Pelepasan Pasangan (tiada sumber pendapatan)" : "Spouse Relief (no income source)", 
-          "RM4,000.00", 
-          "RM4,000.00", 
-          "RM4,000.00", 
-          language === "BM" ? "Tuntutan untuk pasangan tanpa sumber pendapatan" : "Claim for spouse with no source of income"
-        ]
-      ] : []),
-      [
-        "G6/G7", 
-        language === "BM" ? "Perubatan" : "Medical", 
-        formatRM(categoryTotals[ClaimCategory.Medical] || 0), 
-        formatRM(CATEGORY_LIMITS[ClaimCategory.Medical].limit), 
-        formatRM(cappedCategoryTotals[ClaimCategory.Medical] || 0), 
-        language === "BM" ? "Perubatan atau vaksin diri/pasangan/anak." : "Self/spouse/children medical or vaccines."
-      ],
-      [
-        "G9", 
-        language === "BM" ? "Gaya Hidup" : "Lifestyle", 
-        formatRM(categoryTotals[ClaimCategory.Lifestyle] || 0), 
-        formatRM(CATEGORY_LIMITS[ClaimCategory.Lifestyle].limit), 
-        formatRM(cappedCategoryTotals[ClaimCategory.Lifestyle] || 0), 
-        language === "BM" ? "Tuntutan buku, teknologi, internet" : "Books, tech, internet claim"
-      ],
-      [
-        "G10", 
-        language === "BM" ? "Sukan" : "Sports", 
-        formatRM(categoryTotals[ClaimCategory.Sports] || 0), 
-        formatRM(CATEGORY_LIMITS[ClaimCategory.Sports].limit), 
-        formatRM(cappedCategoryTotals[ClaimCategory.Sports] || 0), 
-        language === "BM" ? "Peralatan sukan, yuran gim" : "Sports equipment, gym fees"
-      ],
-      [
-        "G13", 
-        language === "BM" ? "Caruman Simpanan Bersih SSPN" : "SSPN Net Savings Contribution", 
-        formatRM(sspnReceiptAmount), 
-        "RM8,000.00", 
-        formatRM(sspnCapped), 
-        language === "BM" ? "Penyata simpanan tahunan bersih" : "Net annual savings statement"
-      ],
-      [
-        "G17", 
-        language === "BM" ? "Caruman KWSP" : "EPF Contributions", 
-        formatRM(epfVal), 
-        "RM4,000.00", 
-        formatRM(epfCapped), 
-        epfVal > 4000 
-          ? (language === "BM" ? "Dihadkan pada maks RM4,000" : "Capped at max RM4,000") 
-          : (language === "BM" ? "Caruman KWSP digunakan" : "EPF contribution applied")
-      ],
-      [
-        "G20", 
-        "SOCSO / EIS", 
-        formatRM(socsoVal + eisVal), 
-        "RM350.00", 
-        formatRM(totalG20), 
-        language === "BM" ? "Caruman keselamatan sosial" : "Social security contributions"
-      ],
-      [
-        "Other", 
-        language === "BM" ? "Tuntutan Lain" : "Other Claims", 
-        formatRM(categoryTotals[ClaimCategory.Other] || 0), 
-        formatRM(CATEGORY_LIMITS[ClaimCategory.Other].limit), 
-        formatRM(cappedCategoryTotals[ClaimCategory.Other] || 0), 
-        language === "BM" ? "Subjumlah resit cukai lain" : "Other tax receipts subtotal"
-      ],
-      [
-        "G23", 
-        language === "BM" ? "Jumlah Pelepasan (Pindah ke B13)" : "Total Relief (Transfer to B13)", 
-        { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, 
-        "-", 
-        { content: formatRM(totalReliefVal), styles: { fontStyle: "bold" } }, 
-        language === "BM" ? "Jumlah tuntutan G1 hingga G22 dipindahkan terus ke B13." : "Sum of G1 to G22 claims transferred directly to B13."
-      ]
-    ];
+    const reliefRows: any[] = [];
 
-    const formBePartGThemeStyles: any = {
-      theme: "plain",
-      styles: { 
-        fontSize: 6.5, 
-        cellPadding: 1.0, 
-        font: "helvetica", 
-        textColor: [20, 20, 20], 
-        lineColor: [140, 145, 150], 
-        lineWidth: 0.18,
-        overflow: "linebreak" 
-      },
-      headStyles: { 
-        fillColor: [232, 235, 238], 
-        fontStyle: "bold", 
-        textColor: [9, 36, 74], 
-        lineColor: [140, 145, 150], 
-        lineWidth: 0.18,
-        fontSize: 6.5 
-      },
+    const createRow = (itemCode: string, name: string, spentVal: number, limitVal: number, claimedVal: number, statusNote: string, isActive: boolean) => {
+      // Professional dark and readable colors
+      const mainTextColor = [20, 20, 20];
+      const itemTextColor = [9, 36, 74];
+      const statusTextColor = [80, 90, 100];
+      
+      // Grey out both Spent and Claimed only if both are RM0.00 / unused (zero-value)
+      const spentColor = (spentVal === 0 && claimedVal === 0) ? [160, 160, 160] : [20, 20, 20];
+      const limitColor = [80, 80, 80]; // Max Limit is always normal dark (lightly colored but not greyed out/faded)
+      const claimedColor = claimedVal > 0 ? [0, 168, 132] : [160, 160, 160];
+
+      return [
+        // Column 0: Item Code
+        {
+          content: itemCode,
+          styles: {
+            textColor: itemTextColor,
+            fontStyle: "bold"
+          }
+        },
+        // Column 1: Category Name (Keep bold styling unchanged if that is part of the table design)
+        {
+          content: name,
+          styles: {
+            textColor: mainTextColor,
+            fontStyle: "bold"
+          }
+        },
+        // Column 2: Spent
+        {
+          content: formatRM(spentVal),
+          styles: {
+            textColor: spentColor,
+            fontStyle: "normal"
+          }
+        },
+        // Column 3: Max Limit
+        {
+          content: limitVal === 0 ? "-" : formatRM(limitVal),
+          styles: {
+            textColor: limitColor,
+            fontStyle: "normal"
+          }
+        },
+        // Column 4: Claimed
+        {
+          content: formatRM(claimedVal),
+          styles: {
+            textColor: claimedColor,
+            fontStyle: "bold"
+          }
+        },
+        // Column 5: Status Note
+        {
+          content: statusNote,
+          styles: {
+            textColor: statusTextColor,
+            fontStyle: "normal"
+          }
+        }
+      ];
     };
+
+    const getStatusNote = (category: ClaimCategory, spent: number, defaultBM: string, defaultEN: string) => {
+      const pendingReview = pdfCheckAgainByCategory[category] || 0;
+      if (spent === 0) {
+        return language === "BM" ? "Kategori pelepasan tidak digunakan." : "Relief category not utilized.";
+      }
+      if (pendingReview > 0) {
+        return language === "BM"
+          ? `Termasuk draf anggaran; RM${pendingReview.toLocaleString("en-MY", { minimumFractionDigits: 2 })} perlu pengesahan manual`
+          : `Included in draft estimate; RM${pendingReview.toLocaleString("en-MY", { minimumFractionDigits: 2 })} needs manual confirmation`;
+      }
+      return language === "BM" ? defaultBM : defaultEN;
+    };
+
+    // 1. G1: Individual
+    reliefRows.push(
+      createRow(
+        "G1",
+        language === "BM" ? "Pelepasan Individu & Saudara Tanggungan (Automatik)" : "Individual & Dependent Relatives Relief (Automatic)",
+        9000,
+        9000,
+        9000,
+        language === "BM" ? "Pelepasan peribadi automatik disertakan." : "Automatic personal relief included.",
+        true
+      )
+    );
+
+    // 2. G5: Education
+    reliefRows.push(
+      createRow(
+        "G5",
+        language === "BM" ? "Yuran Pengajian (Diri Sendiri)" : "Education Fees (Self)",
+        pdfCategoryTotals[ClaimCategory.Education],
+        7000,
+        pdfCappedCategoryTotals[ClaimCategory.Education],
+        getStatusNote(ClaimCategory.Education, pdfCategoryTotals[ClaimCategory.Education], "Kursus pengajian sendiri dan pengajian ijazah.", "Self study courses and degrees study."),
+        pdfCategoryTotals[ClaimCategory.Education] > 0
+      )
+    );
+
+    // 3. G5 Sp: Spouse Relief
+    const showSpouseReliefRow = assessmentType !== "Self only: single" && 
+                                 assessmentType !== "Self only: divorcee" && 
+                                 assessmentType !== "Self only: widow / widower" && 
+                                 assessmentType !== "Needs review";
+
+    if (showSpouseReliefRow) {
+      reliefRows.push(
+        createRow(
+          "G5 Sp",
+          language === "BM" ? "Pelepasan Pasangan (tiada pendapatan)" : "Spouse Relief (no income source)",
+          spouseReliefAmount,
+          4000,
+          spouseReliefAmount,
+          spouseReliefAmount > 0 
+            ? (language === "BM" ? "Tuntutan untuk pasangan tanpa sumber pendapatan" : "Claim for spouse with no source of income") 
+            : (language === "BM" ? "Kategori pelepasan tidak digunakan." : "Relief category not utilized."),
+          spouseReliefAmount > 0
+        )
+      );
+    }
+
+    // 4. G6/G7: Medical
+    reliefRows.push(
+      createRow(
+        "G6/G7",
+        language === "BM" ? "Perbelanjaan Perubatan" : "Medical Expenses",
+        pdfCategoryTotals[ClaimCategory.Medical],
+        10000,
+        pdfCappedCategoryTotals[ClaimCategory.Medical],
+        getStatusNote(ClaimCategory.Medical, pdfCategoryTotals[ClaimCategory.Medical], "Perubatan atau vaksin diri/pasangan/anak.", "Self/spouse/children medical or vaccines."),
+        pdfCategoryTotals[ClaimCategory.Medical] > 0
+      )
+    );
+
+    // 5. G9: Lifestyle
+    reliefRows.push(
+      createRow(
+        "G9",
+        language === "BM" ? "Gaya Hidup (Buku, Komputer, Internet)" : "Lifestyle (Books, Tech, Internet)",
+        pdfCategoryTotals[ClaimCategory.Lifestyle],
+        2500,
+        pdfCappedCategoryTotals[ClaimCategory.Lifestyle],
+        getStatusNote(ClaimCategory.Lifestyle, pdfCategoryTotals[ClaimCategory.Lifestyle], "Tuntutan buku, teknologi, internet.", "Books, tech, internet claim."),
+        pdfCategoryTotals[ClaimCategory.Lifestyle] > 0
+      )
+    );
+
+    // 6. G10: Sports Equipment
+    reliefRows.push(
+      createRow(
+        "G10",
+        language === "BM" ? "Gaya Hidup (Peralatan Sukan, Gim)" : "Lifestyle (Sports Equipment, Gym)",
+        pdfCategoryTotals[ClaimCategory.Sports],
+        1000,
+        pdfCappedCategoryTotals[ClaimCategory.Sports],
+        getStatusNote(ClaimCategory.Sports, pdfCategoryTotals[ClaimCategory.Sports], "Peralatan sukan, yuran gim.", "Sports equipment, gym fees."),
+        pdfCategoryTotals[ClaimCategory.Sports] > 0
+      )
+    );
+
+    // 7. G13: SSPN
+    const sspnStatusNote = (() => {
+      if (pdfSspnReceiptAmount === 0) {
+        return language === "BM" ? "Kategori pelepasan tidak digunakan." : "Relief category not utilized.";
+      }
+      if (pdfSspnNeedReviewAmount > 0) {
+        return language === "BM"
+          ? `Termasuk draf draf; RM${pdfSspnNeedReviewAmount.toLocaleString("en-MY", { minimumFractionDigits: 2 })} perlu pengesahan manual`
+          : `Included in draft estimate; RM${pdfSspnNeedReviewAmount.toLocaleString("en-MY", { minimumFractionDigits: 2 })} needs manual confirmation`;
+      }
+      return language === "BM" ? "Penyata simpanan tahunan bersih." : "Net annual savings statement.";
+    })();
+
+    reliefRows.push(
+      createRow(
+        "G13",
+        language === "BM" ? "Caruman Simpanan Bersih SSPN" : "SSPN Net Savings Contribution",
+        pdfSspnReceiptAmount,
+        8000,
+        pdfSspnCapped,
+        sspnStatusNote,
+        pdfSspnReceiptAmount > 0
+      )
+    );
+
+    // 8. G17: EPF
+    reliefRows.push(
+      createRow(
+        "G17",
+        language === "BM" ? "Caruman KWSP" : "EPF Contributions",
+        epfVal,
+        4000,
+        epfCapped,
+        epfVal > 0 
+          ? (epfVal > 4000 ? (language === "BM" ? "Dihadkan pada maks RM4,000." : "Capped at max RM4,000.") : (language === "BM" ? "Caruman KWSP digunakan." : "EPF contribution applied.")) 
+          : (language === "BM" ? "Kategori pelepasan tidak digunakan." : "Relief category not utilized."),
+        epfVal > 0
+      )
+    );
+
+    // 9. G20: SOCSO / EIS
+    reliefRows.push(
+      createRow(
+        "G20",
+        "SOCSO / EIS",
+        socsoVal + eisVal,
+        350,
+        totalG20,
+        socsoVal + eisVal > 0 
+          ? (language === "BM" ? "Caruman keselamatan sosial." : "Social security contributions.") 
+          : (language === "BM" ? "Kategori pelepasan tidak digunakan." : "Relief category not utilized."),
+        socsoVal + eisVal > 0
+      )
+    );
+
+    // 10. Other Claims
+    reliefRows.push(
+      createRow(
+        "Other",
+        language === "BM" ? "Tuntutan Lain" : "Other Claims",
+        pdfCategoryTotals[ClaimCategory.Other],
+        CATEGORY_LIMITS[ClaimCategory.Other].limit,
+        pdfCappedCategoryTotals[ClaimCategory.Other],
+        getStatusNote(ClaimCategory.Other, pdfCategoryTotals[ClaimCategory.Other], "Subjumlah resit cukai lain.", "Other tax receipts subtotal."),
+        pdfCategoryTotals[ClaimCategory.Other] > 0
+      )
+    );
+
+    // 11. G23: Total Relief
+    reliefRows.push(
+      createRow(
+        "G23",
+        language === "BM" ? "Jumlah Pelepasan (Pindah ke B13)" : "Total Relief (Transfer to B13)",
+        pdfTotalReliefVal,
+        0,
+        pdfTotalReliefVal,
+        language === "BM" ? "Jumlah tuntutan G1 hingga G22 dipindahkan terus ke B13." : "Sum of G1 to G22 claims transferred directly to B13.",
+        true
+      )
+    );
 
     autoTable(doc, {
       startY: currentY,
       margin: { left: 15, right: 15 },
       head: language === "BM"
-        ? [["Item", "Nama Kategori Pelepasan Borang BE / Butiran", "Perbelanjaan Diisytiharkan", "Had Maksimum", "Dituntut (Dihadkan)", "Nota Status"]]
-        : [["Item", "Form BE Relief Category Name / Details", "Declared Spent", "Max Limit", "Claimed (Capped)", "Status Note"]],
+        ? [["Item", "Kategori Pelepasan Borang BE", "Perbelanjaan", "Had Maks", "Dituntut", "Nota Status"]]
+        : [["Item", "Form BE Relief Category", "Spent", "Max Limit", "Claimed", "Status Note"]],
       body: reliefRows,
-      ...formBePartGThemeStyles,
+      ...sharedTableStyles,
       columnStyles: {
-        0: { cellWidth: 10, fontStyle: "bold", textColor: [9, 36, 74] },
-        1: { cellWidth: 60, fontStyle: "bold" },
-        2: { cellWidth: 22 }, 
-        3: { cellWidth: 20 },
-        4: { cellWidth: 22, fontStyle: "bold", textColor: [0, 168, 132] },
-        5: { cellWidth: 46 }
+        0: { cellWidth: 16, fontStyle: "bold", textColor: [9, 36, 74] },
+        1: { cellWidth: 55, fontStyle: "bold" },
+        2: { cellWidth: 25 }, 
+        3: { cellWidth: 23 },
+        4: { cellWidth: 25, fontStyle: "bold", textColor: [0, 168, 132] },
+        5: { cellWidth: 36 }
       }
     } as any);
 
-    currentY = (doc as any).lastAutoTable.finalY + 8;
+    currentY = (doc as any).lastAutoTable.finalY + 12.0;
 
-    // G. RECEIPT EVIDENCE ATTACHMENT SUMMARY
-    doc.setTextColor(9, 36, 74);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text(
-      language === "BM" ? "RINGKASAN LAMPIRAN BUKTI RESIT" : "RECEIPT EVIDENCE ATTACHMENT SUMMARY", 
-      15, 
+    // SECTION 7: Receipt Claim Summary & Supporting Receipt Notes
+    if (currentY > 220) {
+      doc.addPage();
+      currentY = 20;
+    }
+    currentY = drawSectionHeader(
+      language === "BM" ? "SEKSYEN 7: RINGKASAN TUNTUTAN RESIT & NOTA BUKTI SOKONGAN" : "SECTION 7: RECEIPT CLAIM SUMMARY & SUPPORTING RECEIPT NOTES",
       currentY
     );
-    doc.line(15, currentY + 2, 195, currentY + 2);
-    currentY += 5;
 
-    if (receipts.length === 0) {
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(115, 115, 115);
-      doc.setFontSize(8.5);
-      doc.text(
-        language === "BM" ? "Tiada resit disimpan lagi." : "No saved receipts yet.", 
-        15, 
-        currentY + 4
-      );
-      currentY += 10;
-    } else {
+    const claimableSum = claimableReceipts.reduce((sum, r) => sum + r.amount, 0);
+    const checkAgainSum = checkAgainReceipts.reduce((sum, r) => sum + r.amount, 0);
+    const nonClaimableSum = nonClaimableReceipts.reduce((sum, r) => sum + r.amount, 0);
+
+    const receiptSummaryBody = [
+      [
+        "1",
+        language === "BM" ? "Jumlah Semua Resit Disimpan" : "Total Saved Receipts Count",
+        `${receipts.length} ${language === "BM" ? "resit" : "receipts"}`
+      ],
+      [
+        "2",
+        language === "BM" ? "Jumlah Kasar Boleh Dituntut (Status: Boleh Dituntut)" : "Claimable Receipt Total (Status: Claimable)",
+        formatRM(claimableSum)
+      ],
+      [
+        "3",
+        language === "BM" ? "Resit Perlu Semak (Status: Perlu Semakan)" : "Need Review Receipts (Status: Need Review)",
+        `${checkAgainReceipts.length} ${language === "BM" ? "resit" : "receipts"} (${formatRM(checkAgainSum)})`
+      ],
+      [
+        "4",
+        language === "BM" ? "Resit Tidak Layak (Status: Tidak Layak)" : "Not Included Receipts (Status: Not Eligible)",
+        `${nonClaimableReceipts.length} ${language === "BM" ? "resit" : "receipts"} (${formatRM(nonClaimableSum)})`
+      ]
+    ];
+
+    autoTable(doc, {
+      startY: currentY,
+      margin: { left: 15, right: 15 },
+      body: receiptSummaryBody,
+      ...sharedTableStyles,
+      columnStyles: {
+        0: { cellWidth: 10, fontStyle: "bold", textColor: [9, 36, 74] },
+        1: { cellWidth: 100, fontStyle: "bold" },
+        2: { cellWidth: 70 }
+      }
+    } as any);
+
+    currentY = (doc as any).lastAutoTable.finalY + 6;
+
+    const formatMerchantName = (merchant: string) => {
+      if (!merchant) return "N/A";
+      return merchant
+        .split(/\s+/)
+        .map((word) => {
+          const upper = word.toUpperCase();
+          if (upper === "EPF" || upper === "SOCSO" || upper === "EIS" || upper === "SSPN" || upper === "LHDN" || upper === "TIN" || upper === "PCB" || upper === "MTD" || upper === "SST" || upper === "GST") {
+            return upper;
+          }
+          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join(" ");
+    };
+
+    if (receipts.length > 0) {
       const receiptsBody = receipts.map((r, index) => {
         const itemCode = r.formBEItem || (() => {
           switch (r.category) {
@@ -1017,16 +1266,67 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
             default: return "Other";
           }
         })();
+        
+        const displayStatus = (() => {
+          if (r.claimStatus === ClaimStatus.Claimable) return language === "BM" ? "Layak" : "Claimable";
+          if (r.claimStatus === ClaimStatus.CheckAgain) return language === "BM" ? "Perlu Semak" : "Need Review";
+          return language === "BM" ? "Tidak Layak" : "Not Eligible";
+        })();
+
+        const shortPdfNote = (() => {
+          if (r.claimStatus === ClaimStatus.NonClaimable) {
+            return language === "BM" ? "Tidak disertakan dalam jumlah tuntutan." : "Not included in claimed total.";
+          }
+          if (r.claimStatus === ClaimStatus.CheckAgain) {
+            switch (r.category) {
+              case ClaimCategory.Medical:
+                return language === "BM" ? "Resit perubatan pending semakan kelayakan." : "Medical receipt pending eligibility review.";
+              case ClaimCategory.Education:
+                return language === "BM" ? "Resit pendidikan pending semakan kelayakan." : "Education receipt pending eligibility review.";
+              default:
+                return language === "BM" ? "Sahkan butiran OCR sebelum fail." : "Review OCR details before filing.";
+            }
+          }
+          // Claimable
+          switch (r.category) {
+            case ClaimCategory.Lifestyle:
+              return language === "BM" ? "Dipetakan ke G9 Gaya Hidup. Simpan bukti resit." : "Matched to G9 Lifestyle. Keep receipt proof.";
+            case ClaimCategory.Sports:
+              return language === "BM" ? "Dipetakan ke G10 Sukan. Simpan bukti resit." : "Matched to G10 Sports. Keep receipt proof.";
+            case ClaimCategory.Medical:
+              return language === "BM" ? "Dipetakan ke G6/G7 Perubatan. Simpan bukti resit." : "Matched to G6/G7 Medical. Keep receipt proof.";
+            case ClaimCategory.Education:
+              return language === "BM" ? "Dipetakan ke G5 Pendidikan. Simpan bukti resit." : "Matched to G5 Education. Keep receipt proof.";
+            default:
+              return language === "BM" ? "Dipetakan ke pelepasan. Simpan bukti resit." : "Matched to relief. Keep receipt proof.";
+          }
+        })();
+
         return [
           `${index + 1}`,
-          r.merchant,
+          formatMerchantName(r.merchant),
           r.date || "N/A",
           `RM${r.amount.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           itemCode,
-          r.claimStatus,
-          r.notes || "-"
+          displayStatus,
+          shortPdfNote
         ];
       });
+
+      if (currentY > 225) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setTextColor(9, 36, 74);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(
+        language === "BM" ? "Senarai Lampiran Bukti Resit:" : "Supporting Receipts Evidence List:", 
+        15, 
+        currentY
+      );
+      currentY += 3.5;
 
       autoTable(doc, {
         startY: currentY,
@@ -1034,156 +1334,37 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
         head: language === "BM"
           ? [["No.", "Peniaga", "Tarikh", "Jumlah", "Item BE", "Status", "Nota"]]
           : [["No.", "Merchant", "Date", "Amount", "BE Item", "Status", "Notes"]],
-        headStyles: { fillColor: [9, 36, 74], fontStyle: "bold" },
         body: receiptsBody,
-        theme: "striped",
-        styles: { fontSize: 7, cellPadding: 1.4, font: "helvetica" },
+        ...sharedTableStyles,
         columnStyles: {
-          0: { cellWidth: 8 },
+          0: { cellWidth: 10 },
           1: { cellWidth: 42 },
           2: { cellWidth: 20 },
           3: { cellWidth: 22, fontStyle: "bold" },
-          4: { cellWidth: 18, fontStyle: "bold", textColor: [0, 168, 132] },
-          5: { cellWidth: 20, fontStyle: "bold" },
-          6: { cellWidth: 50 }
+          4: { cellWidth: 18, fontStyle: "bold", textColor: [9, 36, 74] },
+          5: { cellWidth: 22, fontStyle: "bold" },
+          6: { cellWidth: 46 }
         }
       } as any);
-      currentY = (doc as any).lastAutoTable.finalY + 8;
-    }
 
-    // H. NEEDS REVIEW BEFORE FILING
-    if (currentY > 230) {
-      doc.addPage();
-      currentY = 20;
-    }
-
-    doc.setTextColor(9, 36, 74);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text(
-      language === "BM" ? "PERLU SEMAKAN SEBELUM MEMFAILKAN" : "NEEDS REVIEW BEFORE FILING", 
-      15, 
-      currentY
-    );
-    doc.line(15, currentY + 2, 195, currentY + 2);
-    currentY += 5;
-
-    if (checkAgainReceipts.length === 0) {
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(115, 115, 115);
-      doc.setFontSize(8.5);
-      doc.text(
-        language === "BM" 
-          ? "Tiada resit ditandakan Perlu Semak pada masa ini." 
-          : "No receipts currently marked as Needs Review.", 
-        15, 
-        currentY + 4
-      );
-      currentY += 10;
+      currentY = (doc as any).lastAutoTable.finalY + 10.0;
     } else {
-      const checkAgainBody = checkAgainReceipts.map((r, index) => [
-        `${index + 1}`,
-        r.merchant,
-        r.date || "N/A",
-        `RM${r.amount.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        r.category,
-        r.notes || (language === "BM" ? "Sila semak kelayakan dan pengesahan sebelum memfailkan." : "Please check eligibility and verification before filing.")
-      ]);
-
-      autoTable(doc, {
-        startY: currentY,
-        margin: { left: 15, right: 15 },
-        head: language === "BM"
-          ? [["No.", "Peniaga", "Tarikh", "Jumlah", "Kategori", "Nota Semakan Belum Selesai"]]
-          : [["No.", "Merchant", "Date", "Amount", "Category", "Unresolved Review Notes"]],
-        body: checkAgainBody,
-        theme: "striped",
-        styles: { fontSize: 7, cellPadding: 1.2, font: "helvetica" },
-        headStyles: { fillColor: [245, 158, 11], fontStyle: "bold" }, // Amber header
-        columnStyles: {
-          0: { cellWidth: 8 },
-          1: { cellWidth: 40 },
-          2: { cellWidth: 20 },
-          3: { cellWidth: 22, fontStyle: "bold" },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 65, textColor: [180, 83, 9] }
-        }
-      } as any);
-      currentY = (doc as any).lastAutoTable.finalY + 8;
-    }
-
-    // I. NOT INCLUDED / EXCLUDED RECEIPTS
-    if (currentY > 230) {
-      doc.addPage();
-      currentY = 20;
-    }
-
-    doc.setTextColor(9, 36, 74);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text(
-      language === "BM" ? "ITEM TIDAK DISERTAKAN / DIKECUALIKAN" : "NOT INCLUDED / EXCLUDED ITEMS", 
-      15, 
-      currentY
-    );
-    doc.line(15, currentY + 2, 195, currentY + 2);
-    currentY += 5;
-
-    if (nonClaimableReceipts.length === 0) {
-      doc.setFont("helvetica", "italic");
-      doc.setTextColor(115, 115, 115);
-      doc.setFontSize(8.5);
-      doc.text(
-        language === "BM" ? "Tiada item dikecualikan pada masa ini." : "No receipts currently excluded.", 
-        15, 
-        currentY + 4
-      );
-      currentY += 10;
-    } else {
-      const nonEligibleBody = nonClaimableReceipts.map((r, index) => [
-        `${index + 1}`,
-        r.merchant,
-        r.date || "N/A",
-        `RM${r.amount.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        r.category,
-        r.notes || (language === "BM" ? "Resit dikecualikan daripada draf kelayakan" : "Receipt excluded from draft eligibility")
-      ]);
-
-      autoTable(doc, {
-        startY: currentY,
-        margin: { left: 15, right: 15 },
-        head: language === "BM"
-          ? [["No.", "Peniaga", "Tarikh", "Jumlah", "Kategori", "Sebab Dikecualikan / Nota"]]
-          : [["No.", "Merchant", "Date", "Amount", "Category", "Excluded Reason / Notes"]],
-        body: nonEligibleBody,
-        theme: "striped",
-        styles: { fontSize: 7, cellPadding: 1.2, font: "helvetica" },
-        headStyles: { fillColor: [120, 120, 120], fontStyle: "bold" }, // Grey header
-        columnStyles: {
-          0: { cellWidth: 8 },
-          1: { cellWidth: 40 },
-          2: { cellWidth: 20 },
-          3: { cellWidth: 22, fontStyle: "bold" },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 65 }
-        }
-      } as any);
-      currentY = (doc as any).lastAutoTable.finalY + 8;
+      currentY = currentY + 4.0;
     }
 
     // J. RECORD KEEPING COMPLIANCE REMINDER
     const reminderTitle = language === "BM" ? "PERINGATAN PENYIMPANAN 7 TAHUN" : "7-YEAR RECORD KEEPING REMINDER";
     const reminderDesc = language === "BM"
-      ? "Simpan resit, helaian kerja, dan dokumen sokongan selama tujuh (7) tahun untuk tujuan rujukan atau pemeriksaan audit pada masa hadapan."
-      : "Keep receipts, working sheets, and supporting documents for seven (7) years for future reference or audit inspection.";
+      ? "Simpan resit, helaian kerja, dan dokumen sokongan selama tujuh (7) tahun untuk tujuan rujukan atau pemeriksaan audit HASiL/LHDN pada masa hadapan."
+      : "Keep receipts, working sheets, and supporting documents for seven (7) years for future HASiL/LHDN reference or audit inspection.";
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    const wrappedDescLines: string[] = doc.splitTextToSize(reminderDesc, 174);
+    doc.setFontSize(8.0);
+    const wrappedDescLines: string[] = doc.splitTextToSize(reminderDesc, 172);
 
-    const boxHeight = 11 + (wrappedDescLines.length * 4);
+    const boxHeight = 11.0 + (wrappedDescLines.length * 3.6);
 
-    if (currentY > (280 - boxHeight)) {
+    if (currentY > (278 - boxHeight)) {
       doc.addPage();
       currentY = 20;
     }
@@ -1195,17 +1376,17 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
 
     doc.setTextColor(9, 36, 74);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
-    doc.text(reminderTitle, 18, currentY + 5);
+    doc.setFontSize(8.5);
+    doc.text(reminderTitle, 18, currentY + 4.5);
 
     doc.setTextColor(80, 90, 100);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
+    doc.setFontSize(8.0);
 
-    let textY = currentY + 10;
+    let textY = currentY + 9.0;
     wrappedDescLines.forEach((line: string) => {
       doc.text(line, 18, textY);
-      textY += 4;
+      textY += 3.8;
     });
 
     // Apply Page Numbers, dynamic titles and header lines across all pages
@@ -1629,7 +1810,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
             <span>
-              {language === "BM" ? "Lihat Panduan Draf" : "View Draft Guide"}
+              {language === "BM" ? "Lihat Panduan Draf" : "Preview Draft Guide"}
             </span>
           </button>
 
@@ -1637,15 +1818,15 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={handleDownloadAllReceiptImages}
-              className={`h-9 px-2 rounded-xl text-[9.5px] font-black tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1 border ${
+              className={`h-9 px-2 rounded-xl text-[10.5px] font-semibold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1 border ${
                 simulatedPlan === "Free Demo" && receipts.filter(r => r.receiptImageDataUrl).length > 1
-                  ? "bg-amber-50/20 hover:bg-amber-50/40 text-[#713F12]/80 border-amber-300/35"
-                  : "bg-white text-[#09244A] border-neutral-250 hover:bg-neutral-50 shadow-2xs"
+                  ? "bg-amber-50/25 hover:bg-amber-100/45 text-amber-800 border-amber-300/40"
+                  : "bg-[#09244A] text-white border-[#09244A] hover:bg-[#071D3C] active:scale-[0.98] shadow-2xs"
               }`}
             >
               {simulatedPlan === "Free Demo" && receipts.filter(r => r.receiptImageDataUrl).length > 1 ? (
                 <div className="flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-amber-700/60 shrink-0" />
+                  <Lock className="w-3.5 h-3.5 text-amber-700/60 shrink-0" />
                   <span>
                     {language === "BM" ? "Muat Turun Semua ZIP" : "Download All ZIP"}
                   </span>
@@ -1661,15 +1842,15 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
             </button>
             <button
               onClick={handleDownloadDraft}
-              className={`h-9 px-2 rounded-xl text-[9px] font-black tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1 border ${
+              className={`h-9 px-2 rounded-xl text-[10.5px] font-semibold tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1 border ${
                 simulatedPlan === "Free Demo"
-                  ? "bg-amber-50/20 hover:bg-amber-50/40 text-[#713F12]/80 border-amber-300/35"
-                  : "bg-[#09244A] text-white hover:bg-[#061730] border-transparent"
+                  ? "bg-amber-50/25 hover:bg-amber-100/45 text-amber-800 border-amber-300/40"
+                  : "bg-[#09244A] text-white border-[#09244A] hover:bg-[#071D3C] active:scale-[0.98] shadow-2xs"
               }`}
             >
               {simulatedPlan === "Free Demo" ? (
                 <div className="flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-amber-700/60 shrink-0" />
+                  <Lock className="w-3.5 h-3.5 text-amber-700/60 shrink-0" />
                   <span>
                     {language === "BM" ? "Muat Turun Draf PDF" : "Download PDF Draft"}
                   </span>
@@ -1678,12 +1859,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1">
-                  <Crown className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0 animate-pulse" />
-                  <span>
-                    {language === "BM" ? "Muat Turun Draf PDF" : "Download PDF Draft"}
-                  </span>
-                </div>
+                <span>
+                  {language === "BM" ? "Muat Turun Draf PDF" : "Download PDF Draft"}
+                </span>
               )}
             </button>
           </div>
@@ -1833,10 +2011,10 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       </div>
 
       {/* 3. EA Form & Multiple Employment Setup Block */}
-      <div className="bg-[#F5F8FC]/50 border border-[#DEE5ED] rounded-[22px] p-4.5 shadow-3xs z-10 relative space-y-4 transition-all duration-300">
-        <div className="flex justify-between items-center bg-[#EBF1F7] -mx-4.5 -mt-4.5 px-4.5 py-3.5 border-b border-[#DEE5ED]/80 rounded-t-[21px]">
+      <div className="bg-[#EAF7F4]/30 border border-[#00A884]/35 rounded-[22px] p-4.5 shadow-3xs z-10 relative space-y-4 transition-all duration-300">
+        <div className="flex justify-between items-center bg-[#D4F1EB] -mx-4.5 -mt-4.5 px-4.5 py-3.5 border-b border-[#00A884]/25 rounded-t-[21px]">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8.5 h-8.5 rounded-xl bg-[#FAF8F5] flex items-center justify-center text-amber-600 shrink-0 border border-amber-500/10 shadow-3xs">
+            <div className="w-8.5 h-8.5 rounded-xl bg-white flex items-center justify-center text-[#00A884] shrink-0 border border-[#00A884]/20 shadow-3xs">
               <FileCheck className="w-4.5 h-4.5 stroke-[2]" />
             </div>
             <div className="min-w-0 text-left">
@@ -1852,7 +2030,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
 
         {employers.length === 0 ? (
           <div className="space-y-3">
-            <div className="p-3.5 bg-[#FFFDF0] border border-[#FFF1C2]/45 rounded-xl text-left leading-normal animate-fadeIn">
+            <div className="p-3.5 bg-[#FFFDF9] border border-amber-200/35 rounded-xl text-left leading-normal animate-fadeIn">
               <p className="text-[11.5px] text-[#5C450B] font-bold">
                 {language === "BM" ? "Butiran pendapatan penggajian belum ditambah lagi. Tambah jumlah EA/EC apabila anda menerima borang penggajian tahunan anda untuk anggaran cukai yang lebih jelas." : "Employment income details not added yet. Add EA/EC totals when you receive your yearly employment form for a clearer tax estimate."}
               </p>
@@ -1860,15 +2038,9 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
             <div className="flex gap-2">
               <button
                 onClick={() => setActiveView("employment")}
-                className="flex-1 py-2 px-3 bg-[#0B2545] hover:bg-[#031427] text-white text-[11px] font-black rounded-xl transition-all cursor-pointer shadow-3xs text-center"
+                className="w-full py-2 px-3 bg-[#0B2545] hover:bg-[#031427] text-white text-[11px] font-black rounded-xl transition-all cursor-pointer shadow-3xs text-center"
               >
                 {language === "BM" ? "Tambah Pendapatan Penggajian" : "Add Employment Income"}
-              </button>
-              <button
-                onClick={executeDownload}
-                className="flex-1 py-2 px-3 bg-white hover:bg-neutral-50 text-neutral-600 border border-neutral-250 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer text-center"
-              >
-                {language === "BM" ? "Muat Turun Draf Resit Sahaja" : "Only Download Receipt Draft"}
               </button>
             </div>
           </div>
@@ -1910,7 +2082,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
 
             <button
               onClick={() => setActiveView("employment")}
-              className="w-full py-2 bg-neutral-100 hover:bg-neutral-200/80 text-navy font-bold text-[11px] rounded-xl cursor-pointer text-center transition-all"
+              className="w-full py-2.5 bg-navy hover:bg-[#031427] text-white font-extrabold text-[11px] rounded-xl cursor-pointer text-center transition-all shadow-3xs"
             >
               {language === "BM" ? "Urus Butiran Pendapatan Penggajian" : "Manage Employment Income Details"}
             </button>
@@ -2034,16 +2206,16 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
   return (
     <div className="space-y-4">
       {/* SEPARATE SECTION 1: Needs review receipts (Check Again) */}
-      <div className="bg-[#FFFDF4] border border-[#F2DEB4] rounded-[22px] p-4.5 shadow-3xs z-10 relative space-y-3 animate-fadeIn transition-all duration-300">
-        <div className="flex items-center gap-3 bg-[#FAF2DF] -mx-4.5 -mt-4.5 px-4.5 py-3.5 border-b border-[#F4E3C1]/50 rounded-t-[21px]">
-          <div className="w-8.5 h-8.5 rounded-xl bg-[#FFF9E6] flex items-center justify-center text-amber-600 shrink-0 border border-[#F1D89A]/45 shadow-3xs">
+      <div className="bg-[#FFFDF9] border border-amber-200/40 rounded-[22px] p-4.5 shadow-3xs z-10 relative space-y-3 animate-fadeIn transition-all duration-300">
+        <div className="flex items-center gap-3 bg-[#FAF7EE]/70 -mx-4.5 -mt-4.5 px-4.5 py-3.5 border-b border-amber-100/50 rounded-t-[21px]">
+          <div className="w-8.5 h-8.5 rounded-xl bg-white flex items-center justify-center text-amber-500 shrink-0 border border-amber-200/40 shadow-3xs">
             <AlertCircle className="w-4.5 h-4.5 stroke-[2]" />
           </div>
           <div className="min-w-0 text-left">
-            <h3 className="font-extrabold text-[12.5px] text-[#9A5B00] font-heading tracking-tight">
-              {language === "BM" ? "Memerlukan Semakan Sebelum Pemfailan" : "Needs Review Before Filing"}
+            <h3 className="font-extrabold text-[12.5px] text-[#0B2545] font-heading tracking-tight">
+              {language === "BM" ? "Memerlukan Semakan Sebelum Pemfailan" : "Need Review Before Filing"}
             </h3>
-            <p className="text-[10px] text-[#344054] font-semibold mt-0.5 leading-normal">
+            <p className="text-[10px] text-[#475569] font-semibold mt-0.5 leading-normal">
               {language === "BM" ? "Resit-resit ini mungkin memerlukan pemeriksaan lanjut sebelum anda memasukkannya." : "These receipts may need more checking before you include them."}
             </p>
           </div>
@@ -2056,27 +2228,27 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
         ) : (
           <div className="space-y-2">
             {smartSetup?.maritalStatus === "Married" && smartSetup?.spouseAssessmentChoice === "Not sure yet" && (
-              <div className="p-3 bg-[#FFFDF2] border border-[#EAD5A8]/55 rounded-xl space-y-1 text-left animate-fadeIn">
-                <span className="text-[9.5px] uppercase font-extrabold text-[#9A5B00] block font-sans">
-                  {language === "BM" ? "Status Taksiran: Memerlukan Semakan" : "Assessment Status: Needs Review"}
+              <div className="p-3 bg-white border border-amber-200/40 rounded-xl space-y-1 text-left animate-fadeIn">
+                <span className="text-[9.5px] uppercase font-extrabold text-navy block font-sans">
+                  {language === "BM" ? "Status Taksiran: Memerlukan Semakan" : "Assessment Status: Need Review"}
                 </span>
-                <p className="text-[11px] text-[#344054] font-semibold leading-relaxed font-sans">
+                <p className="text-[11px] text-[#475569] font-semibold leading-relaxed font-sans">
                   {language === "BM" ? "Anda memilih \"Kurang pasti lagi\" untuk pilihan taksiran di bawah tetapan. Sila sahkan sama ada anda memfailkan secara berasingan atau bersama." : "You selected \"Not sure yet\" for assessment choice under setup. Please confirm whether you are filing separately or jointly."}
                 </p>
               </div>
             )}
             {checkAgainReceipts.length > 0 && (
               <>
-                <p className="text-[10.5px] text-[#344054] font-semibold bg-[#FFFDF4] p-2.5 rounded-xl border border-[#EAD5A8]/45 leading-normal font-sans text-left">
+                <p className="text-[10.5px] text-[#475569] font-semibold bg-white p-2.5 rounded-xl border border-amber-100/50 leading-normal font-sans text-left">
                   {language === "BM" ? "Beberapa item memerlukan semakan sebelum pemfailan. Ketik resit di bawah Rekod Cukai untuk mengedit atau menjelaskan." : "Some items need checking before filing. Tap a receipt under Tax Records to edit or clarify."}
                 </p>
                 {checkAgainReceipts.map((r) => (
-                  <div key={r.id} className="flex justify-between items-center gap-2 p-3 bg-white hover:bg-[#FCF8EC]/40 border border-[#F3E1B9]/25 rounded-xl leading-none transition-colors">
+                  <div key={r.id} className="flex justify-between items-center gap-2 p-3 bg-white hover:bg-neutral-50/55 border border-neutral-200/60 rounded-xl leading-none transition-colors">
                     <div className="min-w-0 flex-1 text-left">
                       <span className="font-extrabold text-navy block text-[11.5px] truncate">{r.merchant}</span>
-                      <span className="text-[9.5px] text-[#4F5B66] font-semibold mt-0.5 block truncate">{r.category}</span>
+                      <span className="text-[9.5px] text-neutral-400 font-semibold mt-0.5 block truncate">{r.category}</span>
                     </div>
-                    <div className="text-right font-mono font-black text-[#9A5B00] text-[11.5px] shrink-0">
+                    <div className="text-right font-mono font-black text-amber-600 text-[11.5px] shrink-0">
                       RM {r.amount.toFixed(2)}
                     </div>
                   </div>
@@ -2088,16 +2260,16 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
       </div>
 
       {/* SEPARATE SECTION 2: Non-claimable receipts (Not Included) */}
-      <div className="bg-[#FCFCFC] border border-[#EBEBEB] rounded-[22px] p-4.5 shadow-3xs z-10 relative space-y-3 animate-fadeIn opacity-95 transition-all duration-300">
-        <div className="flex items-center gap-3 bg-[#F4F4F4] -mx-4.5 -mt-4.5 px-4.5 py-3.5 border-b border-neutral-200/50 rounded-t-[21px]">
-          <div className="w-8.5 h-8.5 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-450 shrink-0 border border-neutral-200 shadow-3xs">
+      <div className="bg-[#F8FAFC]/60 border border-[#E2E8F0] rounded-[22px] p-4.5 shadow-3xs z-10 relative space-y-3 animate-fadeIn transition-all duration-300">
+        <div className="flex items-center gap-3 bg-[#F1F5F9]/80 -mx-4.5 -mt-4.5 px-4.5 py-3.5 border-b border-[#E2E8F0] rounded-t-[21px]">
+          <div className="w-8.5 h-8.5 rounded-xl bg-white flex items-center justify-center text-[#64748B] shrink-0 border border-[#E2E8F0] shadow-3xs">
             <Ban className="w-4.5 h-4.5 stroke-[2]" />
           </div>
           <div className="min-w-0 text-left">
-            <h3 className="font-extrabold text-[12.5px] text-neutral-500 font-heading tracking-tight">
+            <h3 className="font-extrabold text-[12.5px] text-[#0B2545] font-heading tracking-tight">
               {language === "BM" ? "Tidak Disertakan" : "Not Included"}
             </h3>
-            <p className="text-[10px] text-neutral-450 font-semibold mt-0.5 leading-normal">
+            <p className="text-[10px] text-[#64748B] font-semibold mt-0.5 leading-normal">
               {language === "BM" ? "Resit disimpan yang tidak dikira dalam jumlah tuntutan anda." : "Saved receipts that are not counted in your claim total."}
             </p>
           </div>
@@ -2516,7 +2688,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                       claimed: cappedCategoryTotals[ClaimCategory.Education] || 0,
                       note: language === "BM" ? "Kursus pengajian sendiri dan pengajian peringkat ijazah." : "Self study courses and degrees study.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Education && r.claimStatus === ClaimStatus.CheckAgain)
-                        ? "Needs Review"
+                        ? "Need Review"
                         : "From saved receipts",
                       isActive: (cappedCategoryTotals[ClaimCategory.Education] > 0) || (categoryTotals[ClaimCategory.Education] > 0) || receipts.some(r => r.category === ClaimCategory.Education),
                     },
@@ -2534,7 +2706,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                       statusText: hasSpouseRelief 
                         ? "From profile setup" 
                         : (smartSetup.spouseAssessmentChoice === "Not sure yet" || smartSetup.spouseAssessmentSituation === "Not sure yet")
-                          ? "Needs Review"
+                          ? "Need Review"
                           : "Not included",
                       isActive: hasSpouseRelief || (smartSetup.spouseAssessmentChoice === "Not sure yet" || smartSetup.spouseAssessmentSituation === "Not sure yet"),
                     }] : []),
@@ -2546,7 +2718,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                       claimed: cappedCategoryTotals[ClaimCategory.Medical] || 0,
                       note: language === "BM" ? "Rawatan perubatan atau imunisasi diri sendiri, pasangan atau anak." : "Self, spouse, child medical or vaccination.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Medical && r.claimStatus === ClaimStatus.CheckAgain)
-                        ? "Needs Review"
+                        ? "Need Review"
                         : "From saved receipts",
                       isActive: (cappedCategoryTotals[ClaimCategory.Medical] > 0) || (categoryTotals[ClaimCategory.Medical] > 0) || receipts.some(r => r.category === ClaimCategory.Medical),
                     },
@@ -2558,7 +2730,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                       claimed: cappedCategoryTotals[ClaimCategory.Lifestyle] || 0,
                       note: language === "BM" ? "Buku, akhbar, komputer, telefon pintar, internet." : "Books, reading material, tech, internet.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Lifestyle && r.claimStatus === ClaimStatus.CheckAgain)
-                        ? "Needs Review"
+                        ? "Need Review"
                         : "From saved receipts",
                       isActive: (cappedCategoryTotals[ClaimCategory.Lifestyle] > 0) || (categoryTotals[ClaimCategory.Lifestyle] > 0) || receipts.some(r => r.category === ClaimCategory.Lifestyle),
                     },
@@ -2570,7 +2742,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                       claimed: cappedCategoryTotals[ClaimCategory.Sports] || 0,
                       note: language === "BM" ? "Keahlian gim, penyertaan acara sukan dan peralatan sukan." : "Gym fees, sports events, equipment.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Sports && r.claimStatus === ClaimStatus.CheckAgain)
-                        ? "Needs Review"
+                        ? "Need Review"
                         : "From saved receipts",
                       isActive: (cappedCategoryTotals[ClaimCategory.Sports] > 0) || (categoryTotals[ClaimCategory.Sports] > 0) || receipts.some(r => r.category === ClaimCategory.Sports),
                     },
@@ -2584,8 +2756,8 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                         ? (language === "BM" ? "Penyata simpanan bersih simpanan SSPN." : "Net deposit savings statement.") 
                         : (smartSetup?.sspnSavingsChild === "Yes" ? (language === "BM" ? "Penyata simpanan SSPN dijangka tetapi tiada resit dimuat naik lagi." : "SSPN saving statement expected but no receipts uploaded yet.") : (language === "BM" ? "Kurang pasti jika simpanan SSPN berkenaan." : "Unsure if SSPN contribution applies.")),
                       statusText: sspnReceiptAmount > 0 
-                        ? (receipts.some(r => (r.formBEItem === "G13" || (r.tax5DisplayName || "").toLowerCase().includes("sspn") || (r.notes || "").toLowerCase().includes("sspn") || (r.merchant || "").toLowerCase().includes("sspn")) && r.claimStatus === ClaimStatus.CheckAgain) ? "Needs Review" : "From saved receipts")
-                        : (smartSetup?.sspnSavingsChild === "Yes" || smartSetup?.sspnSavingsChild === "Not sure") ? "Needs Review" : "Not included",
+                        ? (receipts.some(r => (r.formBEItem === "G13" || (r.tax5DisplayName || "").toLowerCase().includes("sspn") || (r.notes || "").toLowerCase().includes("sspn") || (r.merchant || "").toLowerCase().includes("sspn")) && r.claimStatus === ClaimStatus.CheckAgain) ? "Need Review" : "From saved receipts")
+                        : (smartSetup?.sspnSavingsChild === "Yes" || smartSetup?.sspnSavingsChild === "Not sure") ? "Need Review" : "Not included",
                       isActive: sspnReceiptAmount > 0 || (smartSetup?.sspnSavingsChild === "Yes" || smartSetup?.sspnSavingsChild === "Not sure"),
                     },
                     {
@@ -2617,7 +2789,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                       note: smartSetup.childrenCount === "Not sure"
                         ? (language === "BM" ? "Kurang pasti butiran jagaan anak." : "Unsure of child support details.")
                         : (language === "BM" ? "Menuntut pelepasan jagaan anak di MyTax." : "Applied child support relief in MyTax."),
-                      statusText: smartSetup.childrenCount === "Not sure" ? "Needs Review" : "From profile setup",
+                      statusText: smartSetup.childrenCount === "Not sure" ? "Need Review" : "From profile setup",
                       isActive: true,
                     }] : []),
                     ...(smartSetup?.supportingParents && smartSetup.supportingParents !== "No" && smartSetup.supportingParents !== "Prefer not to say" && smartSetup.supportingParents !== "" ? [{
@@ -2629,7 +2801,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                       note: smartSetup.supportingParents === "Not sure"
                         ? (language === "BM" ? "Kurang pasti butiran rawatan perubatan ibu bapa." : "Unsure of parents medical support details.")
                         : (language === "BM" ? "Tuntutan pelepasan rawatan/jagaan ibu bapa digunakan." : "Parents medical/care support relief applied."),
-                      statusText: smartSetup.supportingParents === "Not sure" ? "Needs Review" : "From profile setup",
+                      statusText: smartSetup.supportingParents === "Not sure" ? "Need Review" : "From profile setup",
                       isActive: true,
                     }] : []),
                     {
@@ -2640,7 +2812,7 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                       claimed: cappedCategoryTotals[ClaimCategory.Other] || 0,
                       note: language === "BM" ? "Jumlah kecil baki resit tuntutan lain." : "Remaining tax receipts subtotal.",
                       statusText: receipts.some(r => r.category === ClaimCategory.Other && r.claimStatus === ClaimStatus.CheckAgain)
-                        ? "Needs Review"
+                        ? "Need Review"
                         : "From saved receipts",
                       isActive: (cappedCategoryTotals[ClaimCategory.Other] > 0) || (categoryTotals[ClaimCategory.Other] > 0) || receipts.some(r => r.category === ClaimCategory.Other),
                     }
@@ -2653,7 +2825,8 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
                     if (language !== "BM") return text;
                     switch (text) {
                       case "Automatic": return "Automatik";
-                      case "Needs Review": return "Semak Semula";
+                      case "Needs Review":
+                      case "Need Review": return "Perlu Semakan";
                       case "From saved receipts": return "Resit Disimpan";
                       case "From employment details": return "Butiran Pekerjaan";
                       case "From profile setup": return "Tetapan Profil";
@@ -2845,9 +3018,6 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
           <span>{language === "BM" ? "Panduan penyediaan pra-pemfailan sahaja. Sahkan kelayakan akhir dengan LHDN/MyTax." : "Pre-filing preparation guide only. Verify final eligibility with LHDN/MyTax."}</span>
         </p>
       </div>
-
-      {/* Spacing element to allow thorough vertical scrolling below the absolute bottom navigation bar across custom heights */}
-      <div className="h-10 w-full select-none pointer-events-none"></div>
     </div>
   );
 };

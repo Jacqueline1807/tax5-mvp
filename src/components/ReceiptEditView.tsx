@@ -209,25 +209,25 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
               {language === "BM" ? "Status Tuntutan" : "Claim Status"} <span className="text-red-500">*</span>
             </label>
             
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 w-full">
               {[
                 { 
                   id: ClaimStatus.Claimable, 
-                  label: language === "BM" ? t("common", "statusClaimable") : "Claimable", 
-                  style: "border-teal-brand/35 bg-[#F1FBF9] text-teal-brand",
-                  activeStyle: "border-teal-brand bg-teal-brand text-white rounded-xl ring-2 ring-teal-brand/20 shadow-sm"
+                  label: language === "BM" ? "Boleh Dituntut" : "Claimable", 
+                  style: "border-teal-brand/30 bg-[#EAFDF5] text-teal-brand hover:bg-[#D1FAE5]/60",
+                  activeStyle: "border-teal-brand bg-teal-brand text-white shadow-3xs"
                 },
                 { 
                   id: ClaimStatus.CheckAgain, 
-                  label: language === "BM" ? "Perlu Semak" : "Needs Review", 
-                  style: "border-amber-brand/35 bg-[#FFFDF5] text-amber-brand",
-                  activeStyle: "border-amber-brand bg-amber-brand text-white rounded-xl ring-2 ring-amber-brand/30 shadow-sm"
+                  label: language === "BM" ? "Perlu Semakan" : "Need Review", 
+                  style: "border-amber-300/30 bg-[#FFFBEB] text-amber-700 hover:bg-[#FEF3C7]/60",
+                  activeStyle: "border-[#FBBF24] bg-[#FBBF24] text-[#09244A] shadow-3xs"
                 },
                 { 
                   id: ClaimStatus.NonClaimable, 
-                  label: language === "BM" ? t("common", "statusNonClaimable") : "Not-eligible", 
-                  style: "border-neutral-250 bg-neutral-50 text-neutral-500",
-                  activeStyle: "border-neutral-700 bg-neutral-800 text-white rounded-xl shadow-sm"
+                  label: language === "BM" ? "Tidak Layak" : "Not Eligible", 
+                  style: "border-neutral-300/30 bg-[#F8FAFC] text-neutral-500 hover:bg-neutral-100/60",
+                  activeStyle: "border-neutral-500 bg-neutral-500 text-white shadow-3xs"
                 }
               ].map((pill) => {
                 const isSelected = claimStatus === pill.id;
@@ -236,8 +236,8 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
                     key={pill.id}
                     type="button"
                     onClick={() => setClaimStatus(pill.id)}
-                    className={`h-10 rounded-xl text-[11px] font-bold border transition-all cursor-pointer flex items-center justify-center text-center ${
-                      isSelected ? pill.activeStyle : `${pill.style} border-neutral-200`
+                    className={`h-10 px-1 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center text-center ${
+                      isSelected ? pill.activeStyle : pill.style
                     }`}
                   >
                     {pill.label}
@@ -275,7 +275,7 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="h-11 bg-white hover:bg-neutral-50 border border-neutral-250 rounded-xl text-neutral-500 text-xs flex items-center justify-center cursor-pointer transition-colors"
+            className="h-11 bg-white hover:bg-neutral-50 border border-neutral-250 rounded-xl text-neutral-500 text-xs flex items-center justify-center cursor-pointer active:scale-[0.98] transition-all"
           >
             {language === "BM" ? "Batal" : "Cancel"}
           </button>
@@ -283,7 +283,7 @@ export const ReceiptEditView: React.FC<ReceiptEditViewProps> = ({
           <button
             type="submit"
             id="btn-confirm-edit"
-            className="h-11 bg-teal-brand hover:bg-[#009170] text-white rounded-xl text-xs flex items-center justify-center font-semibold cursor-pointer transition-colors shadow-sm"
+            className="h-11 bg-teal-brand hover:bg-[#009473] text-white rounded-xl text-xs flex items-center justify-center font-semibold cursor-pointer active:scale-[0.98] transition-all shadow-sm"
           >
             {language === "BM" ? "Simpan Perubahan" : "Save Changes"}
           </button>

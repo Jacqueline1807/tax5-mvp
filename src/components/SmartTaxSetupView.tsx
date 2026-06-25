@@ -950,7 +950,7 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
               {language === "BM" ? "Tax5 menggunakan jawapan anda untuk mencadangkan kategori tuntutan dan mengingatkan anda bukti yang perlu disimpan." : "Tax5 uses your answers to suggest claim categories and remind you what proof to keep."}
             </p>
             <p className="text-[10.5px] text-neutral-500 italic mt-1 leading-relaxed font-normal">
-              {language === "BM" ? "Nota: Anda boleh melangkau apa-apa sahaja. Sesetengah tuntutan mungkin ditandakan \"Perlu Semak Semula\" sehingga butiran lanjut ditambah." : "Note: You can skip anything. Some claims may be marked “Needs Review” until more details are added."}
+              {language === "BM" ? "Nota: Anda boleh melangkau apa-apa sahaja. Sesetengah tuntutan mungkin ditandakan \"Perlu Semak Semula\" sehingga butiran lanjut ditambah." : "Note: You can skip anything. Some claims may be marked “Need Review” until more details are added."}
             </p>
           </div>
 
@@ -1361,7 +1361,7 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
                               {formData.alimonyFormerWifeG14 === "Not sure" && (
                                 <div className="flex items-center gap-1.5 p-2 bg-amber-50 border border-amber-200 text-amber-850 rounded-lg text-[10px] font-bold mt-2 font-sans">
                                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                  <span>Status: Needs Review (Please confirm formal alimony agreement)</span>
+                                  <span>Status: Need Review (Please confirm formal alimony agreement)</span>
                                 </div>
                               )}
                             </div>
@@ -1373,7 +1373,7 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
                       {formData.maritalStatus === "Not sure" && (
                         <div className="p-3.5 bg-white border border-neutral-200 rounded-xl space-y-2 animate-slideDown mt-2 text-left font-sans font-semibold">
                           <p className="text-[11px] text-[#B45309] bg-amber-50/70 p-3 rounded-lg leading-relaxed border border-amber-100 font-medium">
-                            💡 Tax5 will mark this part as Needs Review until more details are added.
+                            💡 Tax5 will mark this part as Need Review until more details are added.
                           </p>
                         </div>
                       )}
@@ -2426,7 +2426,7 @@ export const SmartTaxSetupView: React.FC<SmartTaxSetupViewProps> = ({
             )}
 
             <div className="text-[11px] font-semibold text-neutral-500 bg-neutral-50 p-3 rounded-xl border border-neutral-200/50 leading-normal">
-              💡 <span className="font-bold text-neutral-600">If you are not sure:</span> Choose &ldquo;Not sure&rdquo;. Tax5 can still save your receipt and mark it as Needs Review until more details are added.
+              💡 <span className="font-bold text-neutral-600">If you are not sure:</span> Choose &ldquo;Not sure&rdquo;. Tax5 can still save your receipt and mark it as Need Review until more details are added.
             </div>
 
             <button

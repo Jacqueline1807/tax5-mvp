@@ -3,7 +3,7 @@ import { Sparkles, Info, Check, AlertTriangle, Book, HelpCircle } from "lucide-r
 import { ClaimStatus, TaxReliefGuideline } from "../types";
 import { taxReliefGuidelines } from "../data/taxReliefGuidelines";
 import { useLanguage } from "../context/LanguageContext";
-import { calculateCompletionStatus } from "../utils/suggestionEngine";
+import { calculateCompletionStatus, normalizeGuidelineCode } from "../utils/suggestionEngine";
 
 const DISPLAY_NAME_BM: Record<string, string> = {
   "Personal & Dependent Relief": "Pelepasan Diri & Tanggungan",
@@ -327,7 +327,7 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
   receiptId,
 }) => {
   const { t, language } = useLanguage();
-  const code = (formBEItem || "").toUpperCase().trim();
+  const code = normalizeGuidelineCode(formBEItem);
   const guideline: TaxReliefGuideline | undefined = taxReliefGuidelines[code];
 
   // Load smart setup dynamically to allow instant actions
@@ -436,8 +436,8 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
 
   const getDisplayStatusText = (status: string) => {
     if (status === "Claimable") return language === "BM" ? "Boleh Dituntut" : "Claimable";
-    if (status === "Needs Review") return language === "BM" ? "Perlu Semak" : "Needs Review";
-    if (status === "Not-eligible" || status === "NonClaimable") return language === "BM" ? "Tidak Layak" : "Not-eligible";
+    if (status === "Needs Review" || status === "Need Review") return language === "BM" ? "Perlu Semakan" : "Need Review";
+    if (status === "Not-eligible" || status === "NonClaimable" || status === "Not Eligible") return language === "BM" ? "Tidak Layak" : "Not Eligible";
     return status;
   };
 

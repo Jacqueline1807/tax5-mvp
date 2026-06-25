@@ -395,10 +395,10 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                       {language === "BM" ? "Boleh Dituntut" : "Claimable"}
                     </option>
                     <option value={ClaimStatus.CheckAgain}>
-                      {language === "BM" ? "Semak Semula" : "Needs Review"}
+                      {language === "BM" ? "Perlu Semakan" : "Need Review"}
                     </option>
                     <option value={ClaimStatus.NonClaimable}>
-                      {language === "BM" ? "Tidak Boleh Dituntut" : "Not-eligible"}
+                      {language === "BM" ? "Tidak Layak" : "Not Eligible"}
                     </option>
                   </select>
                 </div>
@@ -440,12 +440,12 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                 const isExpanded = !!expandedReceipts[receipt.id];
                 const isConfirming = confirmDeleteId === receipt.id;
 
-                // Design rules badge assignment matching brand guide
-                let badgeStyle = "bg-teal-brand-light text-teal-brand border-teal-brand/10";
+                // Design rules badge assignment matching brand guide with clearer borders
+                let badgeStyle = "bg-[#F0FDF4] text-green-700 border-green-300";
                 if (receipt.claimStatus === ClaimStatus.CheckAgain) {
-                  badgeStyle = "bg-amber-brand-light text-amber-brand border-amber-brand/10";
+                  badgeStyle = "bg-[#FFFBEB] text-amber-700 border-amber-300";
                 } else if (receipt.claimStatus === ClaimStatus.NonClaimable) {
-                  badgeStyle = "bg-neutral-100 text-neutral-500 border-neutral-200/60";
+                  badgeStyle = "bg-[#F8FAFC] text-neutral-500 border-neutral-300";
                 }
 
                 return (
@@ -483,8 +483,8 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                           {receipt.claimStatus === ClaimStatus.Claimable 
                             ? (language === "BM" ? "Boleh Dituntut" : "Claimable")
                             : receipt.claimStatus === ClaimStatus.CheckAgain
-                            ? (language === "BM" ? "Semak Semula" : "Needs Review")
-                            : (language === "BM" ? "Tidak Layak" : "Not-eligible")}
+                            ? (language === "BM" ? "Perlu Semakan" : "Need Review")
+                            : (language === "BM" ? "Tidak Layak" : "Not Eligible")}
                         </span>
                       </div>
                     </div>

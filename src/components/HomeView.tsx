@@ -241,7 +241,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           }}
                           className="px-2.5 py-1.5 bg-[#00A884] hover:bg-[#009473] text-white text-[9.5px] font-sans font-extrabold rounded-xl transition-all cursor-pointer shadow-3xs shrink-0"
                         >
-                          {language === "BM" ? "Naik Taraf Pelan" : "Upgrade Plan"}
+                          {simulatedPlan === "Tax5 Pro"
+                            ? (language === "BM" ? "Tukar Pelan" : "Switch Plan")
+                            : (language === "BM" ? "Naik Taraf Pelan" : "Upgrade Plan")}
                         </button>
                       </div>
                     </div>
@@ -321,45 +323,45 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </p>
         </div>
 
-        {/* Compact status chips in a single row */}
-        <div className="flex flex-row flex-nowrap justify-between gap-1 pt-0.5 w-full select-none">
+        {/* Compact status chips in a single row, grouped and balanced */}
+        <div className="flex flex-row flex-wrap justify-start gap-1.5 min-[360px]:gap-2 pt-1 w-full select-none">
           {/* Claimable pill */}
           <div 
-            className="h-6 px-1.5 min-[360px]:px-2.5 rounded-full flex items-center gap-1 text-[9px] min-[360px]:text-[10px] font-bold border shadow-[0_1px_2px_rgba(0,168,132,0.015)] shrink-0"
+            className="h-6 px-2.5 rounded-full flex items-center gap-1 text-[9px] min-[360px]:text-[10px] font-bold border shadow-[0_1px_2px_rgba(22,163,74,0.015)] shrink-0"
             style={{
-              backgroundColor: "#EAFDF5",
-              borderColor: "rgba(187, 247, 208, 0.3)",
-              color: "#166534"
+              backgroundColor: "#F0FDF4",
+              borderColor: "#86EFAC",
+              color: "#15803D"
             }}
           >
-            <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#16A34A] shrink-0"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] shrink-0"></span>
             <span className="truncate">{`${claimableCount} ${language === "BM" ? "Boleh Dituntut" : "Claimable"}`}</span>
           </div>
 
           {/* Needs Review pill */}
           <div 
-            className="h-6 px-1.5 min-[360px]:px-2.5 rounded-full flex items-center gap-1 text-[9px] min-[360px]:text-[10px] font-bold border shadow-[0_1px_2px_rgba(217,119,6,0.015)] shrink-0"
+            className="h-6 px-2.5 rounded-full flex items-center gap-1 text-[9px] min-[360px]:text-[10px] font-bold border shadow-[0_1px_2px_rgba(217,119,6,0.015)] shrink-0"
             style={{
-              backgroundColor: "#FEF3C7",
-              borderColor: "rgba(253, 230, 138, 0.3)",
+              backgroundColor: "#FFFBEB",
+              borderColor: "#FCD34D",
               color: "#B45309"
             }}
           >
-            <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#D97706] shrink-0"></span>
-            <span className="truncate">{`${checkAgainCount} ${language === "BM" ? "Perlu Semakan" : "Need review"}`}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#F59E0B] shrink-0"></span>
+            <span className="truncate">{`${checkAgainCount} ${language === "BM" ? "Perlu Semakan" : "Need Review"}`}</span>
           </div>
 
           {/* Not Eligible pill */}
           <div 
-            className="h-6 px-1.5 min-[360px]:px-2.5 rounded-full flex items-center gap-1 text-[9px] min-[360px]:text-[10px] font-bold border shrink-0"
+            className="h-6 px-2.5 rounded-full flex items-center gap-1 text-[9px] min-[360px]:text-[10px] font-bold border shadow-[0_1px_2px_rgba(100,116,139,0.01)] shrink-0"
             style={{
-              backgroundColor: "#F3F4F6",
-              borderColor: "rgba(226, 232, 240, 0.3)",
-              color: "#4B5563"
+              backgroundColor: "#F8FAFC",
+              borderColor: "#CBD5E1",
+              color: "#64748B"
             }}
           >
-            <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#6B7280] shrink-0"></span>
-            <span className="truncate">{`${nonClaimableCount} ${language === "BM" ? "Tidak Layak" : "Not eligible"}`}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] shrink-0"></span>
+            <span className="truncate">{`${nonClaimableCount} ${language === "BM" ? "Tidak Layak" : "Not Eligible"}`}</span>
           </div>
         </div>
       </div>

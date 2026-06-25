@@ -92,80 +92,131 @@ export const SubscriptionModals: React.FC<SubscriptionModalsProps> = ({
               </div>
             </div>
 
-            {/* 2. INCLUDED FEATURES SECTION */}
-            <div className="text-left mt-4 animate-fadeIn">
-              <h5 className="text-[10px] font-black text-navy uppercase tracking-wider mb-2">
-                {language === "BM" ? "Termasuk dalam pelan anda" : "Included in your plan"}
-              </h5>
-              <ul className="space-y-1.5 pl-0.5">
-                {(language === "BM" ? [
-                  "Muat naik resit asas",
-                  "Ekstrak OCR demo asas",
-                  "Masukkan resit secara manual",
-                  "Edit butiran resit",
-                  "Cadangan status tuntutan",
-                  "Senarai resit asas",
-                  "Ringkasan draf Form BE asas",
-                  "Panduan asas Tanya Tax5",
-                  "Simpanan demo tempatan"
-                ] : [
-                  "Basic receipt upload",
-                  "Basic OCR demo extraction",
-                  "Manual receipt entry",
-                  "Edit receipt details",
-                  "Claim status suggestion",
-                  "Basic receipt list",
-                  "Basic Form BE draft summary",
-                  "Basic Ask Tax5 guidance",
-                  "Local demo storage"
-                ]).map((feat, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-[10px] text-neutral-600 font-semibold" id={`inc-feat-${idx}`}>
-                    <Check className="w-3.5 h-3.5 text-[#00A884] stroke-[3.5] shrink-0" />
-                    <span>{feat}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* 3. PREMIUM FEATURES PREVIEW SECTION */}
-            <div className="text-left mt-4 border-t border-dashed border-neutral-200/80 pt-4 animate-fadeIn">
-              <div className="flex justify-between items-center mb-2.5">
-                <div className="flex items-center gap-1.5">
-                  <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-                  <h5 className="text-[11px] font-black text-neutral-700 uppercase tracking-wider">
-                    {language === "BM" ? "Tersedia dengan Tax5 Pro" : "Available with Tax5 Pro"}
-                  </h5>
-                </div>
-                <span className="text-[10.5px] font-extrabold text-[#00A884] font-mono select-none">
-                  RM35/{language === "BM" ? "tahun" : "year"}
-                </span>
+            {/* 2. FEATURES SECTION */}
+            {simulatedPlan === "Tax5 Pro" ? (
+              /* Pro Plan View: All features active under "Included in Your Pro Plan" / "Termasuk dalam Pelan Pro Anda" */
+              <div className="text-left mt-4 animate-fadeIn">
+                <h5 className="text-[10px] font-black text-navy uppercase tracking-wider mb-2">
+                  {language === "BM" ? "Termasuk dalam Pelan Pro Anda" : "Included in Your Pro Plan"}
+                </h5>
+                <ul className="space-y-1.5 pl-0.5">
+                  {(language === "BM" ? [
+                    "Muat naik resit asas",
+                    "Ekstrak OCR demo asas",
+                    "Masukkan resit secara manual",
+                    "Edit butiran resit",
+                    "Cadangan status tuntutan",
+                    "Senarai resit asas",
+                    "Ringkasan draf Form BE asas",
+                    "Panduan cukai asas",
+                    "Simpanan demo tempatan",
+                    "Chat Tanya Tax5",
+                    "Muat turun draf PDF",
+                    "Muat turun semua resit sebagai ZIP",
+                    "Sandaran awan",
+                    "Eksport draf Form BE lanjutan",
+                    "Peringatan pintar musim pemfailan"
+                  ] : [
+                    "Basic receipt upload",
+                    "Basic OCR demo extraction",
+                    "Manual receipt entry",
+                    "Edit receipt details",
+                    "Claim status suggestion",
+                    "Basic receipt list",
+                    "Basic Form BE draft summary",
+                    "Basic tax guidance",
+                    "Local demo storage",
+                    "Ask Tax5 Chat",
+                    "Download PDF draft",
+                    "Download all receipts as ZIP",
+                    "Cloud backup",
+                    "Advanced Form BE draft export",
+                    "Smart filing season reminders"
+                  ]).map((feat, idx) => (
+                    <li key={idx} className="flex items-center gap-2 text-[10px] text-neutral-600 font-semibold" id={`inc-feat-${idx}`}>
+                      <Check className="w-3.5 h-3.5 text-[#00A884] stroke-[3.5] shrink-0" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="space-y-1.5 pl-0.5">
-                {(language === "BM" ? [
-                  "Chat Tanya Tax5",
-                  "Muat turun draf PDF",
-                  "Muat turun semua resit sebagai ZIP",
-                  "Sandaran awan",
-                  "Eksport draf Form BE lanjutan",
-                  "Peringatan pintar musim pemfailan"
-                ] : [
-                  "Ask Tax5 Chat",
-                  "Download PDF draft",
-                  "Download all receipts as ZIP",
-                  "Cloud backup",
-                  "Advanced Form BE draft export",
-                  "Smart filing season reminders"
-                ]).map((feat, idx) => (
-                  <li key={idx} className="flex items-center gap-2 text-[10px] text-neutral-400/75 font-medium select-none" id={`prem-feat-${idx}`}>
-                    <Lock className="w-3 h-3 text-neutral-300/90 shrink-0" />
-                    <span>{feat}</span>
-                    <span className="bg-[#FEF6E0] text-[#78350F] font-black text-[7.5px] px-1 py-0.2 rounded shrink-0 uppercase border border-[#FDE68A]/80 ml-auto select-none scale-90 origin-right">
-                      Pro
+            ) : (
+              /* Free Plan View: Free features first, then Locked Premium features */
+              <>
+                <div className="text-left mt-4 animate-fadeIn">
+                  <h5 className="text-[10px] font-black text-navy uppercase tracking-wider mb-2">
+                    {language === "BM" ? "Termasuk dalam pelan anda" : "Included in your plan"}
+                  </h5>
+                  <ul className="space-y-1.5 pl-0.5">
+                    {(language === "BM" ? [
+                      "Muat naik resit asas",
+                      "Ekstrak OCR demo asas",
+                      "Masukkan resit secara manual",
+                      "Edit butiran resit",
+                      "Cadangan status tuntutan",
+                      "Senarai resit asas",
+                      "Ringkasan draf Form BE asas",
+                      "Panduan cukai asas",
+                      "Simpanan demo tempatan"
+                    ] : [
+                      "Basic receipt upload",
+                      "Basic OCR demo extraction",
+                      "Manual receipt entry",
+                      "Edit receipt details",
+                      "Claim status suggestion",
+                      "Basic receipt list",
+                      "Basic Form BE draft summary",
+                      "Basic tax guidance",
+                      "Local demo storage"
+                    ]).map((feat, idx) => (
+                      <li key={idx} className="flex items-center gap-2 text-[10px] text-neutral-600 font-semibold" id={`inc-feat-${idx}`}>
+                        <Check className="w-3.5 h-3.5 text-[#00A884] stroke-[3.5] shrink-0" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="text-left mt-4 border-t border-dashed border-neutral-200/80 pt-4 animate-fadeIn">
+                  <div className="flex justify-between items-center mb-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                      <h5 className="text-[11px] font-black text-neutral-700 uppercase tracking-wider">
+                        {language === "BM" ? "Tersedia dengan Tax5 Pro" : "Available with Tax5 Pro"}
+                      </h5>
+                    </div>
+                    <span className="text-[10.5px] font-extrabold text-[#00A884] font-mono select-none">
+                      RM35/{language === "BM" ? "tahun" : "year"}
                     </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                  </div>
+                  <ul className="space-y-1.5 pl-0.5">
+                    {(language === "BM" ? [
+                      "Chat Tanya Tax5",
+                      "Muat turun draf PDF",
+                      "Muat turun semua resit sebagai ZIP",
+                      "Sandaran awan",
+                      "Eksport draf Form BE lanjutan",
+                      "Peringatan pintar musim pemfailan"
+                    ] : [
+                      "Ask Tax5 Chat",
+                      "Download PDF draft",
+                      "Download all receipts as ZIP",
+                      "Cloud backup",
+                      "Advanced Form BE draft export",
+                      "Smart filing season reminders"
+                    ]).map((feat, idx) => (
+                      <li key={idx} className="flex items-center gap-2 text-[10px] text-neutral-400/75 font-medium select-none" id={`prem-feat-${idx}`}>
+                        <Lock className="w-3 h-3 text-neutral-300/90 shrink-0" />
+                        <span>{feat}</span>
+                        <span className="bg-[#FEF6E0] text-[#78350F] font-black text-[7.5px] px-1 py-0.2 rounded shrink-0 uppercase border border-[#FDE68A]/80 ml-auto select-none scale-90 origin-right">
+                          Pro
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
 
             {/* 4. CTA BUTTON */}
             {simulatedPlan === "Tax5 Pro" ? (

@@ -1,185 +1,85 @@
----
-title: Tax5 OCR API
-emoji: 🧾
-colorFrom: green
-colorTo: yellow
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # Tax5 OCR Backend (Tesseract OCR + FastAPI)
 
-# Tax5 OCR Backend (Tesseract OCR + FastAPI)
-
-This is a lightweight Python-based OCR backend microservice for Tax5. It processes receipt images and returns structured receipt fields using Tesseract OCR with OpenCV preprocessing.
-
-This backend is used as a backup OCR service for Tax5 receipt scanning.
+This is a lightweight, high-performance Python-based OCR backend microservice for Tax5 designed to process receipt images and retrieve parsed fields using Tesseract OCR. 
 
 ## Why Tesseract OCR?
 
-* **Lighter Footprint**: Replaces the resource-heavy PaddleOCR framework to reduce hosting issues on free deployment platforms.
-* **No API Token Usage**: Tesseract runs through the backend and does not consume Gemini API tokens.
-* **Preprocessing Support**: Receipt images are resized, converted to grayscale, and cleaned with Otsu thresholding before OCR.
-* **Review-Based Output**: Extracted results are still treated as draft values. Users must review and edit receipt details before saving.
+- **Lighter Footprint**: Replaces the resource-heavy PaddleOCR framework to prevent out-of-memory container crashes on free hosting tiers (such as Render Free).
+- **Advanced Preprocessing Pipeline**: Compensates for direct text recognition variance by executing high-precision image enhancement using OpenCV.
+- **Multi-PSM Layout Evaluation**: Automatically runs multiple Page Segmentation Modes (PSM) and scores parsing results to select the cleanest text structure.
 
 ## Preprocessing & Extraction Pipeline
 
-1. **Image Loading**: The uploaded receipt image is opened using PIL and converted safely to RGB/BGR.
-
-2. **Image Resizing**: Large images are resized to reduce processing load.
-
-3. **Grayscaling**: The image is converted into grayscale.
-
-4. **Otsu Thresholding**: The image is binarized to improve text-background contrast:
-
+1. **Upscaling**: Safe BGR conversion followed by resizing the input image to **180%** using cubic interpolation (`cv2.INTER_CUBIC`).
+2. **Grayscaling**: Normalizes chrominance details into single-channel luminance data.
+3. **Otsu Thresholding**: Applies bimodal image binarization to clean text-background separation cleanly:
    ```python
    cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
    ```
+4. **Scoring & Layout Assessment**: Evaluates outputs from Tesseract `PSM 6`, `PSM 11`, and `PSM 4` using date matches, currency indicators, receipt keywords, and line-length features.
+5. **Heuristic Parsing**: Parses and extracts dates (resolving common compact OCR format errors like `17012023` to `17/01/2023`), amounts, complex hospital/medical invoices, and company/clinic merchant names.
 
-5. **Tesseract OCR**: The backend runs Tesseract OCR using selected Page Segmentation Modes such as `PSM 6` and fallback modes when needed.
-
-6. **Heuristic Parsing**: The backend extracts merchant name, receipt date, amount, document type, and review status from the OCR text.
-
-7. **Manual Review Reminder**: The returned result includes a confidence note reminding users to review detected details before saving.
+---
 
 ## Project Structure
 
-In the GitHub repository, this backend is stored in:
-
 ```bash
 ocr-api/
-├── main.py
-├── requirements.txt
-├── Dockerfile
-└── README.md
+├── main.py            # FastAPI entry point & Tesseract parsing routines
+├── requirements.txt   # Third-party Python dependencies
+├── Dockerfile         # Docker containerization configuration (Render compatible)
+└── README.md          # Technical documentation and setup guidelines
 ```
 
-When synced to Hugging Face Spaces, the files are placed at the Space root:
-
-```bash
-Dockerfile
-main.py
-requirements.txt
-README.md
-```
+---
 
 ## Local Setup Guide
 
-1. Install Tesseract OCR on your system:
+1. **Install Tesseract OCR on your system**:
+   - **macOS**: `brew install tesseract`
+   - **Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
+   - **Windows**: Download the installer from UB Mannheim.
 
-   * macOS:
-
-     ```bash
-     brew install tesseract
-     ```
-
-   * Ubuntu/Debian:
-
-     ```bash
-     sudo apt-get install tesseract-ocr
-     ```
-
-   * Windows: Install Tesseract OCR from a trusted Windows installer such as UB Mannheim.
-
-2. Open the backend folder:
-
+2. **Open the backend folder**:
    ```bash
    cd ocr-api
    ```
 
-3. Install Python dependencies:
-
+3. **Install Dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Run the server locally:
-
+4. **Run Server**:
    ```bash
-   python -m uvicorn main:app --reload --port 7860
+   python -m uvicorn main:app --reload --port 10000
    ```
 
-5. Test the backend:
+---
 
-   ```text
-   http://localhost:7860/
-   http://localhost:7860/docs
-   ```
+## Render Deployment Settings (Docker)
 
-## Hugging Face Spaces Deployment
+To host this backend on Render's free or paid tiers:
 
-This backend is deployed as a Docker Space.
+1. **Create Web Service**:
+   - Connect your GitHub repository to Render.
+   - Choose **Web Service**.
 
-Required Hugging Face Space configuration is included at the top of this README:
+2. **Render Configurations**:
+   - **Root Directory**: `ocr-api`
+   - **Runtime / Environment**: `Docker`
+   - **Instance Type**: Free or Starter
+   - **Health Check Path**: `/`
 
-```yaml
-sdk: docker
-app_port: 7860
-```
+3. **Test Endpoints & URLs**:
+   - Root URL: `GET /` (checks backend online status)
+   - Interactive Swagger docs: `GET /docs` (to manually test image upload and check extraction output)
 
-The Dockerfile must expose and run the app on port `7860`.
+---
 
-Test URLs after deployment:
+## Response Schema Specifications
 
-```text
-https://jacqqq-tax5-ocr-api.hf.space/
-https://jacqqq-tax5-ocr-api.hf.space/docs
-```
-
-## Render Deployment Settings
-
-This backend can also be deployed on Render using Docker.
-
-Recommended settings:
-
-```text
-Root Directory: ocr-api
-Runtime / Environment: Docker
-Health Check Path: /
-```
-
-For Render, Docker deployment is required because `pytesseract` needs the actual system Tesseract engine installed inside the container.
-
-## API Endpoints
-
-### Health Check
-
-```http
-GET /
-```
-
-Example response:
-
-```json
-{
-  "status": "online",
-  "service": "Tax5 OCR API Gateway",
-  "engine": "FastAPI with Tesseract OCR",
-  "endpoints": {
-    "health": "/",
-    "ocr": "/ocr/receipt"
-  }
-}
-```
-
-### Receipt OCR
-
-```http
-POST /ocr/receipt
-```
-
-Request format:
-
-```text
-multipart/form-data
-file: receipt image
-```
-
-## Response Schema
-
-### Clear Receipt
-
+### Clear Receipt (`GET /ocr/receipt`)
 ```json
 {
   "ok": true,
@@ -194,10 +94,7 @@ file: receipt image
     "amount": "145.20",
     "rawText": "KLINIK KESIHATAN CO...\nTOTAL RM145.20...",
     "lines": [
-      {
-        "text": "KLINIK KESIHATAN CO",
-        "confidence": 0.95
-      }
+      { "text": "KLINIK KESIHATAN CO", "confidence": 0.95 }
     ],
     "confidenceNote": "Receipt reading is basic in this MVP. Please review and edit the detected details before saving."
   }
@@ -205,7 +102,6 @@ file: receipt image
 ```
 
 ### Complex Bill / Hospital Invoice
-
 ```json
 {
   "ok": true,
@@ -224,29 +120,3 @@ file: receipt image
   }
 }
 ```
-
-### OCR Failure
-
-```json
-{
-  "ok": false,
-  "engine": "Tesseract OCR",
-  "preprocessingApplied": true,
-  "selectedPsm": "",
-  "needsReview": true,
-  "documentType": "unknown",
-  "error": "OCR took too long or failed. Please use Manual Add.",
-  "fields": {
-    "merchantName": "",
-    "date": "",
-    "amount": "",
-    "rawText": "",
-    "lines": [],
-    "confidenceNote": "Receipt reading failed. Please use Manual Add."
-  }
-}
-```
-
-## Important Notes
-
-Tax5 is a pre-filing support tool only. OCR results are not official tax approval. Users must review receipt details and verify final claim eligibility using LHDN/MyTax information before filing.

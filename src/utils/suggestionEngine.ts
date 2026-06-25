@@ -1,4 +1,5 @@
 import { ClaimCategory, ClaimStatus, Receipt, SmartSetupData } from "../types";
+import { taxReliefGuidelines } from "../data/taxReliefGuidelines";
 
 export interface AdjustedSuggestion {
   category: ClaimCategory;
@@ -43,19 +44,41 @@ export function calculateCompletionStatus(data: SmartSetupData | null): "Not sta
   return "Partly done";
 }
 
+export function normalizeGuidelineCode(code: string): string {
+  const cleaned = (code || "").toLowerCase().trim();
+  if (
+    cleaned === "g6" ||
+    cleaned === "g7" ||
+    cleaned === "g6/g7" ||
+    cleaned === "medical" ||
+    cleaned === "health screening" ||
+    cleaned === "medical / health screening" ||
+    cleaned === "medical / health screening (g6/g7)" ||
+    cleaned.includes("medical") ||
+    cleaned.includes("health screening")
+  ) {
+    return "G6";
+  }
+  if (cleaned === "g17/g19") {
+    return "G19";
+  }
+  return (code || "").toUpperCase().trim();
+}
+
 export function adjustReceiptSuggestion(
   formBEItem: string,
   category: ClaimCategory,
   initialStatus: ClaimStatus,
   setup: SmartSetupData | null
 ): AdjustedSuggestion {
+  const bCode = normalizeGuidelineCode(formBEItem);
+  const guidelineExists = !!taxReliefGuidelines[bCode];
+
   // Defaults
   let finalStatus = initialStatus;
   let confidence: "High" | "Medium" | "Low" = "Medium";
   let why = `This receipt appears to be for ${category.toLowerCase()} spending.`;
   let check = "Confirm it was for personal or family use and keep the digital receipt.";
-  
-  const bCode = (formBEItem || "").toUpperCase().trim();
 
   // Childcare centre or kindergarten (G12)
   if (bCode === "G12") {
@@ -171,7 +194,16 @@ export function adjustReceiptSuggestion(
     }
   }
   // Vaccinations, dental examination, medical check-up (G6)
-  else if (bCode === "G6" || formBEItem.toLowerCase().includes("dental") || formBEItem.toLowerCase().includes("vaccin") || formBEItem.toLowerCase().includes("screening")) {
+  else if (
+    bCode === "G6" || 
+    bCode === "G7" || 
+    bCode === "G6/G7" || 
+    formBEItem.toLowerCase().includes("medical") || 
+    formBEItem.toLowerCase().includes("health") || 
+    formBEItem.toLowerCase().includes("dental") || 
+    formBEItem.toLowerCase().includes("vaccin") || 
+    formBEItem.toLowerCase().includes("screening")
+  ) {
     const isScreening = setup?.vaccinationDentalCheckup === "Yes";
     if (isScreening) {
       finalStatus = ClaimStatus.Claimable;
@@ -404,6 +436,19 @@ export function adjustReceiptSuggestion(
     }
   }
   
+  // Safeguards for consistency:
+  // 1. If no valid insight guideline exists in our tax library, the claim status must be set to Needs Review (CheckAgain)
+  if (!guidelineExists) {
+    finalStatus = ClaimStatus.CheckAgain;
+    confidence = "Low";
+    why = "Tax5 could not match this receipt to a guideline yet.";
+    check = "Please review manually using the latest LHDN/MyTax information.";
+  }
+  // 2. If the initial status indicates review (e.g. OCR needsReview, complex_bill, or manual unmatched), keep it as such
+  else if (initialStatus === ClaimStatus.CheckAgain || initialStatus === ClaimStatus.NonClaimable) {
+    finalStatus = initialStatus;
+  }
+
   return {
     category,
     claimStatus: finalStatus,

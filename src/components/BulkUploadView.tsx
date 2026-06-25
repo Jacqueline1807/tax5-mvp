@@ -421,25 +421,34 @@ export const BulkUploadView: React.FC<BulkUploadViewProps> = ({
                           </label>
                           <div className="grid grid-cols-3 gap-2">
                             {[
-                              { id: ClaimStatus.Claimable, label: language === "BM" ? "Boleh Tuntut" : "Claimable", color: "bg-teal-brand-light text-teal-brand border-teal-brand/20" },
-                              { id: ClaimStatus.CheckAgain, label: language === "BM" ? "Perlu Semak" : "Review", color: "bg-amber-brand/10 text-amber-brand border-amber-brand/25" },
-                              { id: ClaimStatus.NonClaimable, label: language === "BM" ? "Tidak Layak" : "Not-eligible", color: "bg-neutral-100 text-neutral-600 border-neutral-200" }
+                              { 
+                                id: ClaimStatus.Claimable, 
+                                label: language === "BM" ? "Boleh Dituntut" : "Claimable", 
+                                style: "border-teal-brand/30 bg-[#EAFDF5] text-teal-brand hover:bg-[#D1FAE5]/60",
+                                activeStyle: "border-teal-brand bg-teal-brand text-white shadow-3xs"
+                              },
+                              { 
+                                id: ClaimStatus.CheckAgain, 
+                                label: language === "BM" ? "Perlu Semakan" : "Need Review", 
+                                style: "border-amber-300/30 bg-[#FFFBEB] text-amber-700 hover:bg-[#FEF3C7]/60",
+                                activeStyle: "border-[#FBBF24] bg-[#FBBF24] text-[#09244A] shadow-3xs"
+                              },
+                              { 
+                                id: ClaimStatus.NonClaimable, 
+                                label: language === "BM" ? "Tidak Layak" : "Not Eligible", 
+                                style: "border-neutral-300/30 bg-[#F8FAFC] text-neutral-500 hover:bg-neutral-100/60",
+                                activeStyle: "border-neutral-500 bg-neutral-500 text-white shadow-3xs"
+                              }
                             ].map((pill) => {
                               const isSelected = item.claimStatus === pill.id;
-                              const activeClass = isSelected 
-                                ? pill.id === ClaimStatus.Claimable 
-                                  ? "bg-teal-brand text-white border-teal-brand shadow-xs rounded-xl" 
-                                  : pill.id === ClaimStatus.CheckAgain
-                                    ? "bg-amber-brand text-white border-amber-brand shadow-xs rounded-xl"
-                                    : "bg-neutral-800 text-white border-neutral-800 shadow-xs rounded-xl"
-                                : `${pill.color} hover:brightness-95 rounded-xl border-dashed`;
-
                               return (
                                 <button
                                   key={pill.id}
                                   type="button"
                                   onClick={() => handleUpdateBulkItemField(item.id, "claimStatus", pill.id)}
-                                  className={`h-8 border text-[10px] font-bold transition-all flex items-center justify-center cursor-pointer ${activeClass}`}
+                                  className={`h-9 px-1 rounded-xl text-[10.5px] font-semibold border transition-all flex items-center justify-center cursor-pointer text-center ${
+                                    isSelected ? pill.activeStyle : pill.style
+                                  }`}
                                 >
                                   {pill.label}
                                 </button>
