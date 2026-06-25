@@ -564,6 +564,7 @@ export const ReceiptListView: React.FC<ReceiptListViewProps> = ({
                             confidence={receipt.confidence}
                             suggestionWhy={receipt.suggestionWhy}
                             suggestionCheck={receipt.suggestionCheck}
+                            receiptId={receipt.id}
                           />
                         )}
 

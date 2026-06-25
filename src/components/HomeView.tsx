@@ -285,7 +285,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <span className="text-[#0B2545]/85 font-black text-[10px] tracking-wider uppercase font-heading">
-              {t("summary", "personalInfoTitle")}
+              {language === "BM" ? "DRAF BORANG BE" : "FORM BE DRAFT"}
             </span>
             <span className="bg-white/80 text-[#009170] text-[9px] font-black px-2 py-0.5 rounded-full border border-teal-500/10">
               {language === "BM" ? "TT 2026" : "Y/A 2026"}
@@ -317,7 +317,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </span>
           </div>
           <p className="text-[10px] text-[#4F5B66] font-semibold">
-            {t("home", "totalClaimed")}
+            {language === "BM" ? "Jumlah boleh dituntut daripada resit yang disimpan" : "Claimable total from saved receipts"}
           </p>
         </div>
 
@@ -333,7 +333,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             }}
           >
             <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#16A34A] shrink-0"></span>
-            <span className="truncate">{`${claimableCount} ${t("common", "statusClaimable")}`}</span>
+            <span className="truncate">{`${claimableCount} ${language === "BM" ? "Boleh Dituntut" : "Claimable"}`}</span>
           </div>
 
           {/* Needs Review pill */}
@@ -346,7 +346,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             }}
           >
             <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#D97706] shrink-0"></span>
-            <span className="truncate">{`${checkAgainCount} ${t("common", "statusCheckAgain")}`}</span>
+            <span className="truncate">{`${checkAgainCount} ${language === "BM" ? "Perlu Semakan" : "Need review"}`}</span>
           </div>
 
           {/* Not Eligible pill */}
@@ -359,7 +359,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             }}
           >
             <span className="w-1 h-1 min-[360px]:w-1.5 min-[360px]:h-1.5 rounded-full bg-[#6B7280] shrink-0"></span>
-            <span className="truncate">{`${nonClaimableCount} ${t("common", "statusNonClaimable")}`}</span>
+            <span className="truncate">{`${nonClaimableCount} ${language === "BM" ? "Tidak Layak" : "Not eligible"}`}</span>
           </div>
         </div>
       </div>

@@ -5,6 +5,32 @@ import { SCAN_TEMPLATES, ScanTemplate } from "../data/mockTemplates";
 import { adjustReceiptSuggestion, calculateCompletionStatus } from "../utils/suggestionEngine";
 import { SuggestionInsightsCard } from "./SuggestionInsightsCard";
 import { useLanguage } from "../context/LanguageContext";
+import { BulkUploadView } from "./BulkUploadView";
+
+export interface BulkReceiptQueueItem {
+  id: string;
+  file: File;
+  previewUrl: string;
+  base64: string;
+  mimeType: string;
+  status: "waiting" | "scanning" | "ready" | "failed";
+  merchant: string;
+  date: string;
+  amount: string;
+  category: ClaimCategory | "";
+  claimStatus: ClaimStatus | "";
+  notes: string;
+  formBEItem: string;
+  tax5DisplayName: string;
+  evidenceType: string;
+  detectedText: string;
+  confidence: "High" | "Medium" | "Low";
+  suggestionWhy: string;
+  suggestionCheck: string;
+  receiptImageDataUrl?: string;
+  errorMsg?: string;
+  validationErrors?: Record<string, string>;
+}
 
 interface AddScanViewProps {
   onSaveReceipt: (receipt: Omit<Receipt, "id" | "createdAt" | "updatedAt">) => void;
@@ -160,6 +186,16 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
   const [confidence, setConfidence] = useState<"High" | "Medium" | "Low">("Medium");
   const [suggestionWhy, setSuggestionWhy] = useState("");
   const [suggestionCheck, setSuggestionCheck] = useState("");
+
+  // Mode selection state: "single" | "bulk"
+  const [bulkUploadMode, setBulkUploadMode] = useState<"single" | "bulk">("single");
+
+  // Bulk Upload Queue states
+  const [bulkQueue, setBulkQueue] = useState<BulkReceiptQueueItem[]>([]);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
 
   // Full rich dropdown categories mapping to Form BE codes
   const dropdownOptions = [
@@ -741,6 +777,490 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
     }, 900);
   };
 
+  const readFileAsBase64 = (file: File): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const resultStr = reader.result as string;
+        const parts = resultStr.split(",");
+        if (parts.length > 1) {
+          resolve({ base64: parts[1], mimeType: file.type });
+        } else {
+          reject(new Error("Failed to extract base64 data."));
+        }
+      };
+      reader.onerror = () => {
+        reject(new Error("FileReader error."));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const compressImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      if (!file || file.size === 0) {
+        resolve("");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 1000;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/jpeg", 0.75));
+            } else {
+              resolve(reader.result as string);
+            }
+          } catch (err) {
+            console.error("Compression error:", err);
+            resolve(reader.result as string);
+          }
+        };
+        img.onerror = () => resolve(reader.result as string);
+        img.src = reader.result as string;
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const processSequentialQueue = async (currentQueue: BulkReceiptQueueItem[]) => {
+    setIsProcessingBulk(true);
+    
+    for (let i = 0; i < currentQueue.length; i++) {
+      const item = currentQueue[i];
+      if (item.status !== "waiting") continue;
+
+      setBulkQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "scanning" } : q));
+
+      try {
+        const { base64, mimeType } = await readFileAsBase64(item.file);
+        const compressedDataUrl = await compressImageFile(item.file);
+
+        const response = await fetch("/api/read-receipt", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            image: base64,
+            mimeType: mimeType,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to scan receipt");
+        }
+
+        const data = await response.json();
+
+        let formattedAmount = "";
+        if (data.amount) {
+          const cleaned = data.amount.replace(/[^0-9.]/g, "");
+          const parsed = parseFloat(cleaned);
+          if (!isNaN(parsed)) {
+            formattedAmount = parsed.toFixed(2);
+          } else {
+            formattedAmount = data.amount;
+          }
+        }
+
+        const activeCategory = (data.category as ClaimCategory) || ClaimCategory.Other;
+        const resultSuggestion = adjustReceiptSuggestion(data.formBEItem || "Other", activeCategory, (data.claimStatus as ClaimStatus) || ClaimStatus.CheckAgain, smartSetup);
+
+        setBulkQueue(prev => prev.map(q => q.id === item.id ? {
+          ...q,
+          status: "ready",
+          merchant: data.merchant || "",
+          date: data.date || "",
+          amount: formattedAmount,
+          category: activeCategory,
+          claimStatus: resultSuggestion.claimStatus,
+          notes: data.note || "",
+          formBEItem: data.formBEItem || "Other",
+          tax5DisplayName: data.tax5DisplayName || "",
+          evidenceType: data.evidenceType || "Receipt-based",
+          detectedText: data.detectedText || "",
+          confidence: resultSuggestion.confidence,
+          suggestionWhy: resultSuggestion.why,
+          suggestionCheck: resultSuggestion.check,
+          receiptImageDataUrl: compressedDataUrl,
+          previewUrl: compressedDataUrl,
+        } : q));
+
+      } catch (err) {
+        console.error(`Error processing bulk item ${item.id}:`, err);
+        let fallbackImg = "";
+        try {
+          fallbackImg = await compressImageFile(item.file);
+        } catch (_) {}
+
+        setBulkQueue(prev => prev.map(q => q.id === item.id ? {
+          ...q,
+          status: "failed",
+          previewUrl: fallbackImg,
+          receiptImageDataUrl: fallbackImg,
+          errorMsg: language === "BM"
+            ? "Bacaan resit gagal. Anda boleh edit secara manual atau buang draf ini."
+            : "Receipt reading failed. You can edit manually or remove this draft."
+        } : q));
+      }
+    }
+
+    setIsProcessingBulk(false);
+  };
+
+  const handleSaveBulkItem = (item: BulkReceiptQueueItem) => {
+    const itemErrors: Record<string, string> = {};
+    if (!item.merchant.trim()) {
+      itemErrors.merchant = language === "BM" ? "Sila masukkan nama resit." : "Please enter the receipt name.";
+    }
+    if (!item.date) {
+      itemErrors.date = language === "BM" ? "Sila pilih tarikh resit." : "Please choose the receipt date.";
+    }
+    if (!item.amount.trim() || isNaN(Number(item.amount)) || Number(item.amount) <= 0) {
+      itemErrors.amount = language === "BM" ? "Sila masukkan jumlah resit yang sah." : "Please enter a valid receipt amount.";
+    }
+    if (!item.category) {
+      itemErrors.category = language === "BM" ? "Sila pilih kategori tuntutan." : "Please choose a claim category.";
+    }
+    if (!item.claimStatus) {
+      itemErrors.claimStatus = language === "BM" ? "Sila pilih status tuntutan." : "Please choose a claim status.";
+    }
+
+    if (Object.keys(itemErrors).length > 0) {
+      setBulkQueue(prev => prev.map(q => q.id === item.id ? { ...q, validationErrors: itemErrors } : q));
+      setEditingItemId(item.id);
+      return;
+    }
+
+    let finalReceiptImageDataUrl = item.receiptImageDataUrl || item.previewUrl || undefined;
+    if (isDemo && !finalReceiptImageDataUrl) {
+      finalReceiptImageDataUrl = generateMockCanvasDataUrl(item.merchant, parseFloat(item.amount).toFixed(2), item.date, item.category);
+    }
+
+    onSaveReceipt({
+      merchant: item.merchant,
+      date: item.date,
+      amount: parseFloat(item.amount),
+      category: item.category as ClaimCategory,
+      claimStatus: item.claimStatus as ClaimStatus,
+      notes: item.notes,
+      formBEItem: item.formBEItem,
+      tax5DisplayName: item.tax5DisplayName,
+      evidenceType: item.evidenceType,
+      detectedText: item.detectedText,
+      note: item.notes || item.tax5DisplayName,
+      confidence: item.confidence,
+      suggestionWhy: item.suggestionWhy,
+      suggestionCheck: item.suggestionCheck,
+      receiptImageDataUrl: finalReceiptImageDataUrl,
+    });
+
+    setBulkQueue(prev => {
+      const remaining = prev.filter(q => q.id !== item.id);
+      if (item.previewUrl && item.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      return remaining;
+    });
+
+    if (editingItemId === item.id) {
+      setEditingItemId(null);
+    }
+  };
+
+  const handleRemoveBulkItem = (id: string) => {
+    setBulkQueue(prev => {
+      const item = prev.find(q => q.id === id);
+      if (item?.previewUrl && item.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      return prev.filter(q => q.id !== id);
+    });
+    if (editingItemId === id) {
+      setEditingItemId(null);
+    }
+  };
+
+  const handleUpdateBulkItemField = (id: string, field: string, value: any) => {
+    setBulkQueue(prev => prev.map(q => {
+      if (q.id === id) {
+        const updated = { ...q, [field]: value };
+        if (updated.validationErrors && updated.validationErrors[field]) {
+          const newErrors = { ...updated.validationErrors };
+          delete newErrors[field];
+          updated.validationErrors = newErrors;
+        }
+        if (field === "formBEItem") {
+          const option = dropdownOptions.find(o => o.id === value);
+          if (option) {
+            updated.category = option.category;
+            updated.tax5DisplayName = option.displayName;
+            const activeCategory = option.category || ClaimCategory.Other;
+            const result = adjustReceiptSuggestion(option.id, activeCategory, (updated.claimStatus as ClaimStatus) || ClaimStatus.CheckAgain, smartSetup);
+            updated.claimStatus = result.claimStatus;
+            updated.confidence = result.confidence;
+            updated.suggestionWhy = result.why;
+            updated.suggestionCheck = result.check;
+          } else {
+            updated.category = "";
+            updated.tax5DisplayName = "";
+          }
+        }
+        return updated;
+      }
+      return q;
+    }));
+  };
+
+  const handleBulkFileInit = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files) as File[];
+      if (files.length > 5) {
+        setBulkError(language === "BM"
+          ? "Bulk Upload Beta menyokong sehingga 5 resit pada satu masa untuk ujian MVP."
+          : "Bulk Upload Beta supports up to 5 receipts at a time for MVP testing."
+        );
+        e.target.value = "";
+        return;
+      }
+
+      setBulkError(null);
+
+      const newItems: BulkReceiptQueueItem[] = files.map((file, i) => {
+        const previewUrl = URL.createObjectURL(file);
+        return {
+          id: `bulk-item-${i}-${Date.now()}-${Math.random()}`,
+          file,
+          previewUrl,
+          base64: "",
+          mimeType: file.type,
+          status: "waiting",
+          merchant: "",
+          date: "",
+          amount: "",
+          category: "",
+          claimStatus: ClaimStatus.CheckAgain,
+          notes: "",
+          formBEItem: "Other",
+          tax5DisplayName: dropdownOptions.find(o => o.id === "Other")?.displayName || "",
+          evidenceType: "Receipt-based",
+          detectedText: "",
+          confidence: "Medium",
+          suggestionWhy: "",
+          suggestionCheck: "",
+        };
+      });
+
+      setBulkQueue(newItems);
+      processSequentialQueue(newItems);
+    }
+    e.target.value = "";
+  };
+
+  const handleAddManualDraft = () => {
+    setBulkError(null);
+    const manualId = `bulk-manual-${Date.now()}`;
+    const newManualItem: BulkReceiptQueueItem = {
+      id: manualId,
+      file: new File([""], "manual_entry.jpg", { type: "image/jpeg" }),
+      previewUrl: "",
+      base64: "",
+      mimeType: "",
+      status: "ready",
+      merchant: "",
+      date: "",
+      amount: "",
+      category: "",
+      claimStatus: ClaimStatus.CheckAgain,
+      notes: "",
+      formBEItem: "Other",
+      tax5DisplayName: dropdownOptions.find(o => o.id === "Other")?.displayName || "",
+      evidenceType: "Receipt-based",
+      detectedText: language === "BM" ? "Ditambah Secara Manual" : "Manually Added",
+      confidence: "Medium",
+      suggestionWhy: "",
+      suggestionCheck: "",
+    };
+    setBulkQueue(prev => [...prev, newManualItem]);
+    setEditingItemId(manualId);
+  };
+
+  const handleSimulateBulkQueue = () => {
+    setBulkError(null);
+    const mockItems: BulkReceiptQueueItem[] = [
+      {
+        id: `bulk-mock-1-${Date.now()}`,
+        file: new File([""], "popular_books.jpg", { type: "image/jpeg" }),
+        previewUrl: "",
+        base64: "",
+        mimeType: "image/jpeg",
+        status: "waiting",
+        merchant: "Popular Bookstore",
+        date: "",
+        amount: "",
+        category: "",
+        claimStatus: "",
+        notes: "",
+        formBEItem: "",
+        tax5DisplayName: "",
+        evidenceType: "",
+        detectedText: "",
+        confidence: "Medium",
+        suggestionWhy: "",
+        suggestionCheck: "",
+      },
+      {
+        id: `bulk-mock-2-${Date.now()}`,
+        file: new File([""], "decathlon_sport.jpg", { type: "image/jpeg" }),
+        previewUrl: "",
+        base64: "",
+        mimeType: "image/jpeg",
+        status: "waiting",
+        merchant: "Decathlon KL East",
+        date: "",
+        amount: "",
+        category: "",
+        claimStatus: "",
+        notes: "",
+        formBEItem: "",
+        tax5DisplayName: "",
+        evidenceType: "",
+        detectedText: "",
+        confidence: "Medium",
+        suggestionWhy: "",
+        suggestionCheck: "",
+      },
+      {
+        id: `bulk-mock-3-${Date.now()}`,
+        file: new File([""], "lunch_receipt_fail.jpg", { type: "image/jpeg" }),
+        previewUrl: "",
+        base64: "",
+        mimeType: "image/jpeg",
+        status: "waiting",
+        merchant: "FamilyMart Bangsar",
+        date: "",
+        amount: "",
+        category: "",
+        claimStatus: "",
+        notes: "",
+        formBEItem: "",
+        tax5DisplayName: "",
+        evidenceType: "",
+        detectedText: "",
+        confidence: "Medium",
+        suggestionWhy: "",
+        suggestionCheck: "",
+      }
+    ];
+
+    setBulkQueue(mockItems);
+    setIsProcessingBulk(true);
+
+    let index = 0;
+    const processNextMock = () => {
+      if (index >= mockItems.length) {
+        setIsProcessingBulk(false);
+        return;
+      }
+
+      const item = mockItems[index];
+      setBulkQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: "scanning" } : q));
+
+      setTimeout(() => {
+        const mockDates = ["2026-04-18", "2026-05-12", "2026-06-02"];
+        const dateVal = mockDates[index];
+        
+        if (index === 0) {
+          const activeCategory = ClaimCategory.Lifestyle;
+          const resultSuggestion = adjustReceiptSuggestion("G9", activeCategory, ClaimStatus.Claimable, smartSetup);
+
+          setBulkQueue(prev => prev.map(q => q.id === item.id ? {
+            ...q,
+            status: "ready",
+            merchant: "Popular Bookstore",
+            date: dateVal,
+            amount: "85.20",
+            category: activeCategory,
+            claimStatus: resultSuggestion.claimStatus,
+            notes: language === "BM" ? "Buku rujukan bahasa melayu dan sains." : "Reference books on language and science.",
+            formBEItem: "G9",
+            tax5DisplayName: language === "BM" ? "Gaya Hidup - Membaca, Peranti & Internet" : "Lifestyle - Reading, Tech & Internet",
+            evidenceType: language === "BM" ? "Berasaskan resit" : "Receipt-based",
+            detectedText: "POPULAR BOOK CO.\nBANDAR UTAMA\n1x VERIFIED BOOKS RM 85.20\nTOTAL RM 85.20",
+            confidence: resultSuggestion.confidence,
+            suggestionWhy: resultSuggestion.why,
+            suggestionCheck: resultSuggestion.check,
+            receiptImageDataUrl: generateMockCanvasDataUrl("Popular Bookstore", "85.20", dateVal, "Lifestyle"),
+            previewUrl: generateMockCanvasDataUrl("Popular Bookstore", "85.20", dateVal, "Lifestyle"),
+          } : q));
+        } else if (index === 1) {
+          const activeCategory = ClaimCategory.Sports;
+          const resultSuggestion = adjustReceiptSuggestion("G10", activeCategory, ClaimStatus.Claimable, smartSetup);
+
+          setBulkQueue(prev => prev.map(q => q.id === item.id ? {
+            ...q,
+            status: "ready",
+            merchant: "Decathlon KL East",
+            date: dateVal,
+            amount: "120.00",
+            category: activeCategory,
+            claimStatus: resultSuggestion.claimStatus,
+            notes: language === "BM" ? "Kasut larian ergonomik." : "Ergonomic running shoes.",
+            formBEItem: "G10",
+            tax5DisplayName: language === "BM" ? "Gaya Hidup - Sukan" : "Lifestyle - Sports",
+            evidenceType: language === "BM" ? "Berasaskan resit" : "Receipt-based",
+            detectedText: "DECATHLON SPORT\nKL EAST MALL\n1x RUNNING SHOES RM 120.00\nTOTAL RM 120.00",
+            confidence: resultSuggestion.confidence,
+            suggestionWhy: resultSuggestion.why,
+            suggestionCheck: resultSuggestion.check,
+            receiptImageDataUrl: generateMockCanvasDataUrl("Decathlon KL East", "120.00", dateVal, "Sports"),
+            previewUrl: generateMockCanvasDataUrl("Decathlon KL East", "120.00", dateVal, "Sports"),
+          } : q));
+        } else {
+          const canvasUrl = generateMockCanvasDataUrl("FamilyMart Bangsar", "14.50", dateVal, "Other");
+          setBulkQueue(prev => prev.map(q => q.id === item.id ? {
+            ...q,
+            status: "failed",
+            merchant: "FamilyMart Bangsar",
+            date: dateVal,
+            amount: "14.50",
+            category: ClaimCategory.Other,
+            previewUrl: canvasUrl,
+            receiptImageDataUrl: canvasUrl,
+            errorMsg: language === "BM"
+              ? "Bacaan resit gagal. Anda boleh edit secara manual atau buang draf ini."
+              : "Receipt reading failed. You can edit manually or remove this draft."
+          } : q));
+        }
+
+        index++;
+        processNextMock();
+      }, 1200);
+    };
+
+    processNextMock();
+  };
+
   // Validation & Save Call
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -814,9 +1334,42 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
         </button>
       </div>
 
-      <div className="space-y-4">
-        
-        {/* ================= STEP 1: ADD RECEIVED FILE ================= */}
+      {/* Mode selection tabs */}
+      <div className="flex bg-[#FAFBFB] p-1.5 rounded-2xl border border-neutral-200/60 max-w-sm">
+        <button
+          type="button"
+          onClick={() => {
+            if (!isProcessingBulk) {
+              setBulkUploadMode("single");
+            }
+          }}
+          disabled={isProcessingBulk}
+          className={`flex-1 py-1.5 text-center text-xs font-bold rounded-xl transition-all cursor-pointer ${
+            bulkUploadMode === "single"
+              ? "bg-white text-navy shadow-3xs border border-neutral-200/30"
+              : "text-neutral-500 hover:text-navy hover:bg-neutral-50"
+          } ${isProcessingBulk ? "opacity-50 cursor-not-allowed" : ""}`}
+        >
+          {language === "BM" ? "Resit Tunggal" : "Single Receipt"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setBulkUploadMode("bulk")}
+          className={`flex-1 py-1 px-2.5 text-center text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 ${
+            bulkUploadMode === "bulk"
+              ? "bg-white text-navy shadow-3xs border border-neutral-200/30"
+              : "text-neutral-500 hover:text-navy hover:bg-neutral-50"
+          }`}
+        >
+          <span>{language === "BM" ? "Muat Naik Pukal" : "Bulk Upload"}</span>
+          <span className="bg-amber-500 text-white text-[8px] font-black px-1.2 py-0.2 rounded uppercase tracking-wider scale-90">BETA</span>
+        </button>
+      </div>
+
+      {bulkUploadMode === "single" ? (
+        <div className="space-y-4">
+          
+          {/* ================= STEP 1: ADD RECEIVED FILE ================= */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200/60 space-y-3.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1132,17 +1685,6 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
         )}
 
         <form onSubmit={handleSave} className="space-y-4">
-
-          {/* ================= TAX5 AI CLASSIFICATION GUIDE SUGGESTION ================= */}
-          {formBEItem && (
-            <SuggestionInsightsCard
-              formBEItem={formBEItem}
-              claimStatus={claimStatus}
-              confidence={confidence}
-              suggestionWhy={suggestionWhy}
-              suggestionCheck={suggestionCheck}
-            />
-          )}
           
           {/* ================= STEP 2: CHECK THE DETAILS ================= */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-neutral-200/60 space-y-3.5">
@@ -1348,6 +1890,18 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
             </div>
           </div>
 
+          {/* ================= TAX5 AI CLASSIFICATION GUIDE SUGGESTION ================= */}
+          {formBEItem && (
+            <SuggestionInsightsCard
+              formBEItem={formBEItem}
+              claimStatus={claimStatus}
+              confidence={confidence}
+              suggestionWhy={suggestionWhy}
+              suggestionCheck={suggestionCheck}
+              receiptId="new-scan"
+            />
+          )}
+
           {/* Legal and official disclaimer context box */}
           <div className="flex gap-2 p-3 bg-blue-50/60 border border-blue-100 rounded-xl text-navy">
             <Info className="w-4 h-4 text-navy-light shrink-0 mt-0.5" />
@@ -1372,7 +1926,28 @@ export const AddScanView: React.FC<AddScanViewProps> = ({
             </button>
           </div>
         </form>
-      </div>
+        </div>
+      ) : (
+        <BulkUploadView
+          bulkQueue={bulkQueue}
+          editingItemId={editingItemId}
+          isProcessingBulk={isProcessingBulk}
+          bulkError={bulkError}
+          language={language}
+          isDemo={isDemo}
+          dropdownOptions={dropdownOptions}
+          setBulkQueue={setBulkQueue}
+          setEditingItemId={setEditingItemId}
+          setBulkError={setBulkError}
+          handleSimulateBulkQueue={handleSimulateBulkQueue}
+          handleRemoveBulkItem={handleRemoveBulkItem}
+          handleSaveBulkItem={handleSaveBulkItem}
+          handleUpdateBulkItemField={handleUpdateBulkItemField}
+          handleAddManualDraft={handleAddManualDraft}
+          bulkFileInputRef={bulkFileInputRef}
+          handleBulkFileInit={handleBulkFileInit}
+        />
+      )}
     </div>
   );
 };

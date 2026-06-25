@@ -267,6 +267,15 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
       return;
     }
 
+    if (simulatedPlan === "Free Demo" && receiptsWithImages.length > 1) {
+      if (onTriggerUpgrade) {
+        onTriggerUpgrade();
+      } else {
+        alert("Downloading multiple receipts as a ZIP is a Pro feature.");
+      }
+      return;
+    }
+
     const dataURLtoBlob = (dataUrl: string): Blob | null => {
       try {
         const parts = dataUrl.split(",");
@@ -1260,7 +1269,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
 
   if (activeView === "employment") {
     return (
-      <div className="flex-1 flex flex-col p-4 bg-[#F5FAF7] space-y-4 pb-32 relative overflow-x-hidden">
+      <div className="flex-1 flex flex-col p-4 bg-[#F5FAF7] space-y-4 pb-20 relative overflow-x-hidden">
         {/* Decorative background blobs */}
         <div className="absolute top-[-5%] left-[-15%] w-[250px] h-[250px] rounded-full bg-[#E5F5EF] blur-[85px] opacity-75 pointer-events-none z-0"></div>
         <div className="absolute bottom-[8%] right-[-10%] w-[220px] h-[220px] rounded-full bg-[#FFFBE3] blur-[75px] opacity-65 pointer-events-none z-0"></div>
@@ -1547,7 +1556,7 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col p-4 bg-[#F5FAF7] space-y-4 pb-32 relative overflow-x-hidden">
+    <div className="flex-1 flex flex-col p-4 bg-[#F5FAF7] space-y-4 pb-20 relative overflow-x-hidden">
       {/* Soft circular low-opacity decorative gradient background blobs */}
       <div className="absolute top-[-5%] left-[-15%] w-[250px] h-[250px] rounded-full bg-[#E5F5EF] blur-[85px] opacity-75 pointer-events-none z-0"></div>
       <div className="absolute bottom-[8%] right-[-10%] w-[220px] h-[220px] rounded-full bg-[#FFFBE3] blur-[75px] opacity-65 pointer-events-none z-0"></div>
@@ -1628,11 +1637,27 @@ export const TaxSummaryView: React.FC<TaxSummaryViewProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={handleDownloadAllReceiptImages}
-              className="h-9 px-2 rounded-xl text-[9.5px] font-black tracking-wide border border-neutral-250 bg-white text-[#09244A] hover:bg-neutral-50 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs"
+              className={`h-9 px-2 rounded-xl text-[9.5px] font-black tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1 border ${
+                simulatedPlan === "Free Demo" && receipts.filter(r => r.receiptImageDataUrl).length > 1
+                  ? "bg-amber-50/20 hover:bg-amber-50/40 text-[#713F12]/80 border-amber-300/35"
+                  : "bg-white text-[#09244A] border-neutral-250 hover:bg-neutral-50 shadow-2xs"
+              }`}
             >
-              <span>
-                {language === "BM" ? "Muat Turun Resit" : "Download Receipts"}
-              </span>
+              {simulatedPlan === "Free Demo" && receipts.filter(r => r.receiptImageDataUrl).length > 1 ? (
+                <div className="flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-amber-700/60 shrink-0" />
+                  <span>
+                    {language === "BM" ? "Muat Turun Semua ZIP" : "Download All ZIP"}
+                  </span>
+                  <span className="bg-[#FEF6E0] text-[#78350F] border border-[#FDE68A]/80 text-[8px] font-black px-1.2 py-0.5 rounded uppercase shrink-0">
+                    PRO
+                  </span>
+                </div>
+              ) : (
+                <span>
+                  {language === "BM" ? "Muat Turun Resit" : "Download Receipts"}
+                </span>
+              )}
             </button>
             <button
               onClick={handleDownloadDraft}
@@ -2821,18 +2846,8 @@ const TaxSummaryBottomSections: React.FC<TaxSummaryBottomSectionsProps> = ({
         </p>
       </div>
 
-      {/* Secondary router buttons */}
-      <div className="space-y-2.5 pt-2 z-10 relative">
-        <button
-          onClick={onBackToHome}
-          className="w-full h-11 bg-white hover:bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-600 font-bold text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-sm"
-        >
-          <span>{language === "BM" ? "Kembali ke Laman Utama" : "Back to Home"}</span>
-        </button>
-      </div>
-
       {/* Spacing element to allow thorough vertical scrolling below the absolute bottom navigation bar across custom heights */}
-      <div className="h-14 w-full select-none pointer-events-none"></div>
+      <div className="h-10 w-full select-none pointer-events-none"></div>
     </div>
   );
 };

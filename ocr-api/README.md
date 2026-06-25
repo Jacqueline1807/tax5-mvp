@@ -1,87 +1,122 @@
-# Tax5 OCR Backend (PaddleOCR + FastAPI)
+# Tax5 OCR Backend (Tesseract OCR + FastAPI)
 
-This is a high-performance Python-based OCR backend microservice for Tax5 designed to process receipt images and retrieve parsed fields using popular, lightweight neural models via PaddleOCR.
+This is a lightweight, high-performance Python-based OCR backend microservice for Tax5 designed to process receipt images and retrieve parsed fields using Tesseract OCR. 
 
-## Features
+## Why Tesseract OCR?
 
-- **FastAPI HTTP Endpoint**: Fully optimized framework hosting `GET /` and `POST /ocr/receipt` routing.
-- **PaddleOCR Engine**: Multi-lingual text localization and recognition matching layout constructs perfectly.
-- **Robust Field Extraction**: Algorithmic sorting / regex heuristics prioritizing merchant details, transaction dates, and total amounts.
-- **JSON Compatibility**: Consistent structured format aligning securely with client state and safety definitions.
+- **Lighter Footprint**: Replaces the resource-heavy PaddleOCR framework to prevent out-of-memory container crashes on free hosting tiers (such as Render Free).
+- **Advanced Preprocessing Pipeline**: Compensates for direct text recognition variance by executing high-precision image enhancement using OpenCV.
+- **Multi-PSM Layout Evaluation**: Automatically runs multiple Page Segmentation Modes (PSM) and scores parsing results to select the cleanest text structure.
+
+## Preprocessing & Extraction Pipeline
+
+1. **Upscaling**: Safe BGR conversion followed by resizing the input image to **180%** using cubic interpolation (`cv2.INTER_CUBIC`).
+2. **Grayscaling**: Normalizes chrominance details into single-channel luminance data.
+3. **Otsu Thresholding**: Applies bimodal image binarization to clean text-background separation cleanly:
+   ```python
+   cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+   ```
+4. **Scoring & Layout Assessment**: Evaluates outputs from Tesseract `PSM 6`, `PSM 11`, and `PSM 4` using date matches, currency indicators, receipt keywords, and line-length features.
+5. **Heuristic Parsing**: Parses and extracts dates (resolving common compact OCR format errors like `17012023` to `17/01/2023`), amounts, complex hospital/medical invoices, and company/clinic merchant names.
+
+---
 
 ## Project Structure
 
 ```bash
 ocr-api/
-├── main.py            # Main FastAPI server with custom ocr parsing routines
-├── requirements.txt   # Third-party dependency definitions
-└── README.md          # Implementation and guidelines documentation
+├── main.py            # FastAPI entry point & Tesseract parsing routines
+├── requirements.txt   # Third-party Python dependencies
+├── Dockerfile         # Docker containerization configuration (Render compatible)
+└── README.md          # Technical documentation and setup guidelines
 ```
 
-## Setup & Running Guide
+---
 
-1. **Prerequisite**  
-   Make sure Python 3.8+ is installed.
+## Local Setup Guide
 
-2. **Open the backend folder**
+1. **Install Tesseract OCR on your system**:
+   - **macOS**: `brew install tesseract`
+   - **Ubuntu/Debian**: `sudo apt-get install tesseract-ocr`
+   - **Windows**: Download the installer from UB Mannheim.
+
+2. **Open the backend folder**:
    ```bash
    cd ocr-api
    ```
 
-3. **Execution**:
+3. **Install Dependencies**:
    ```bash
-   python -m uvicorn main:app --reload --port 8000
+   pip install -r requirements.txt
    ```
 
-## Hugging Face Spaces Deployment (Docker)
+4. **Run Server**:
+   ```bash
+   python -m uvicorn main:app --reload --port 10000
+   ```
 
-To deploy this backend as a lightweight, scaling microservice on Hugging Face Spaces:
+---
 
-1. **Create a New Space**:
-   - Go to [Hugging Face Spaces](https://huggingface.co/spaces) and click **Create new Space**.
-   - Set a name for your Space.
-   - For **SDK**, select **Docker** (choose the **Blank** template option / no pre-configured space to use the custom `Dockerfile`).
-   - Choose your space visibility (Public or Private).
+## Render Deployment Settings (Docker)
 
-2. **Upload/Commit Files**:
-   - Copy or upload the files inside the `ocr-api` folder (`Dockerfile`, `main.py`, `requirements.txt`) into the root directory of your Space repository.
-   - You can upload these via the Hugging Face web interface or clone the Space's Git repository and push them.
+To host this backend on Render's free or paid tiers:
 
-3. **Port Routing**:
-   - Hugging Face automatically detects and routes traffic on container port **7860**.
-   - The provided `Dockerfile` is pre-configured to expose and listen on port **7860** via:
-     ```dockerfile
-     CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
-     ```
+1. **Create Web Service**:
+   - Connect your GitHub repository to Render.
+   - Choose **Web Service**.
 
-4. **Verify Application status**:
-   - Once building and startup completes, visit your space URL at standard HTTP endpoints:
-     - `GET /` to verify the online status.
-     - `GET /docs` to use the interactive Swagger documentation and test the API directly.
+2. **Render Configurations**:
+   - **Root Directory**: `ocr-api`
+   - **Runtime / Environment**: `Docker`
+   - **Instance Type**: Free or Starter
+   - **Health Check Path**: `/`
 
-## Endpoint Specification
+3. **Test Endpoints & URLs**:
+   - Root URL: `GET /` (checks backend online status)
+   - Interactive Swagger docs: `GET /docs` (to manually test image upload and check extraction output)
 
-### GET `/`
-Verifies server health status.
+---
 
-### POST `/ocr/receipt`
-Accepts a binary receipt image file multipart transfer.
+## Response Schema Specifications
 
-- **Request Form-Data Key**: `file` (Image file)
-- **Response Format**:
-  ```json
-  {
-    "ok": true,
-    "engine": "PaddleOCR",
-    "fields": {
-      "merchantName": "GIANT SUPERMARKET",
-      "date": "14/06/2026",
-      "amount": "145.20",
-      "rawText": "GIANT SUPERMARKET...\nTOTAL RM145.20...",
-      "lines": [
-        { "text": "GIANT SUPERMARKET", "confidence": 0.985 }
-      ],
-      "confidenceNote": "Receipt reading is basic in this MVP. Please review and edit the detected details before saving."
-    }
+### Clear Receipt (`GET /ocr/receipt`)
+```json
+{
+  "ok": true,
+  "engine": "Tesseract OCR",
+  "preprocessingApplied": true,
+  "selectedPsm": "psm_6",
+  "needsReview": false,
+  "documentType": "receipt",
+  "fields": {
+    "merchantName": "KLINIK KESIHATAN CO",
+    "date": "14/06/2026",
+    "amount": "145.20",
+    "rawText": "KLINIK KESIHATAN CO...\nTOTAL RM145.20...",
+    "lines": [
+      { "text": "KLINIK KESIHATAN CO", "confidence": 0.95 }
+    ],
+    "confidenceNote": "Receipt reading is basic in this MVP. Please review and edit the detected details before saving."
   }
-  ```
+}
+```
+
+### Complex Bill / Hospital Invoice
+```json
+{
+  "ok": true,
+  "engine": "Tesseract OCR",
+  "preprocessingApplied": true,
+  "selectedPsm": "psm_11",
+  "needsReview": true,
+  "documentType": "complex_bill",
+  "fields": {
+    "merchantName": "COLUMBIA ASIA HOSPITAL",
+    "date": "18/06/2026",
+    "amount": "",
+    "rawText": "COLUMBIA ASIA HOSPITAL...\nPATIENT ID 19283...\nLAB CHARGES 500.00\nWARD CHARGES 300.00",
+    "lines": [],
+    "confidenceNote": "This looks like a complex bill or invoice. Please confirm the final claimable amount before saving."
+  }
+}
+```

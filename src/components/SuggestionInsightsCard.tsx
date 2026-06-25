@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Sparkles, Info, Check, AlertTriangle, Book, HelpCircle } from "lucide-react";
 import { ClaimStatus, TaxReliefGuideline } from "../types";
 import { taxReliefGuidelines } from "../data/taxReliefGuidelines";
 import { useLanguage } from "../context/LanguageContext";
+import { calculateCompletionStatus } from "../utils/suggestionEngine";
 
 const DISPLAY_NAME_BM: Record<string, string> = {
   "Personal & Dependent Relief": "Pelepasan Diri & Tanggungan",
@@ -313,6 +314,7 @@ interface SuggestionInsightsCardProps {
   suggestionWhy?: string;
   suggestionCheck?: string;
   id?: string;
+  receiptId?: string;
 }
 
 export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
@@ -322,6 +324,7 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
   suggestionWhy,
   suggestionCheck,
   id = "tax5-suggestion-card",
+  receiptId,
 }) => {
   const { t, language } = useLanguage();
   const code = (formBEItem || "").toUpperCase().trim();
@@ -373,14 +376,30 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
   };
 
   // State to track checklist items checked. Key: guideline item + index
-  const [checkedChecks, setCheckedChecks] = useState<Record<string, boolean>>({});
+  const [checkedChecks, setCheckedChecks] = useState<Record<string, boolean>>(() => {
+    const storageKey = receiptId ? `tax5_checklist_ticked_${receiptId}` : `tax5_checklist_ticked_${code}`;
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Sync checklist state when receiptId or code changes
+  useEffect(() => {
+    const storageKey = receiptId ? `tax5_checklist_ticked_${receiptId}` : `tax5_checklist_ticked_${code}`;
+    const saved = localStorage.getItem(storageKey);
+    setCheckedChecks(saved ? JSON.parse(saved) : {});
+  }, [receiptId, code]);
 
   const toggleCheck = (index: number) => {
     const key = `${code}-${index}`;
-    setCheckedChecks((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setCheckedChecks((prev) => {
+      const next = {
+        ...prev,
+        [key]: !prev[key],
+      };
+      const storageKey = receiptId ? `tax5_checklist_ticked_${receiptId}` : `tax5_checklist_ticked_${code}`;
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      return next;
+    });
   };
 
   if (!code) return null;
@@ -441,6 +460,8 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
   const localizedSuggestionWhy = language === "BM" && suggestionWhy ? translateDynamicWhyBM(suggestionWhy) : suggestionWhy;
   const localizedSuggestionCheck = language === "BM" && suggestionCheck ? translateDynamicCheckBM(suggestionCheck) : suggestionCheck;
 
+  const allTicked = localizedRequiredChecks.length > 0 && localizedRequiredChecks.every((_, idx) => !!checkedChecks[`${code}-${idx}`]);
+
   return (
     <div
       id={id}
@@ -460,6 +481,31 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
           {language === "BM" ? `Panduan YA ${guideline.lastReviewedYear}` : `YA ${guideline.lastReviewedYear} Guide`}
         </span>
       </div>
+
+      {/* Profile Complete / Incomplete Reminder */}
+      {!smartSetupFromStorage || calculateCompletionStatus(smartSetupFromStorage) !== "Ready" ? (
+        <div className="bg-amber-50/45 border border-amber-500/10 rounded-xl p-2.5 text-[11px] text-amber-900 leading-normal font-sans shadow-3xs flex items-start gap-2">
+          <span className="shrink-0 text-amber-600">⚠️</span>
+          <div>
+            <strong>{language === "BM" ? "Profil Cukai Tidak Lengkap:" : "Incomplete Tax Profile:"}</strong>{" "}
+            {language === "BM" 
+              ? "Sila semak kelayakan tuntutan anda dengan teliti kerana profil Setup Cukai Pintar anda belum selesai." 
+              : "Please review your claim eligibility carefully as your Smart Tax Setup profile is incomplete."}
+          </div>
+        </div>
+      ) : (
+        (smartSetupFromStorage.maritalStatus === "Married" || (smartSetupFromStorage.childrenCount && smartSetupFromStorage.childrenCount !== "0")) && (
+          <div className="bg-teal-50/40 border border-teal-500/10 rounded-xl p-2.5 text-[11px] text-[#00604A] leading-normal font-sans shadow-3xs flex items-start gap-2">
+            <span className="shrink-0 text-teal-600">👥</span>
+            <div>
+              <strong>{language === "BM" ? "Panduan Diperibadikan:" : "Personalized Guidance:"}</strong>{" "}
+              {language === "BM" 
+                ? "Resit boleh dituntut untuk kegunaan diri sendiri, pasangan anda, atau anak-anak anda (maklumat keluarga dikesan daripada profil anda)." 
+                : "Receipts can be claimed for the use/benefit of yourself, your spouse, or your children (family info detected from your profile)."}
+            </div>
+          </div>
+        )
+      )}
 
       <div className="bg-white rounded-xl p-3.5 border border-neutral-150 space-y-3.5 shadow-sm text-xs">
         {/* Row 1: Item Code & Status */}
@@ -563,6 +609,12 @@ export const SuggestionInsightsCard: React.FC<SuggestionInsightsCardProps> = ({
             {localizedSuggestionCheck && (
               <div className="text-[10px] text-neutral-500 mt-1 pt-1.5 border-t border-dashed border-neutral-200">
                 <strong>{language === "BM" ? "Konteks resit:" : "Receipt context:"}</strong> {localizedSuggestionCheck}
+              </div>
+            )}
+            {allTicked && (
+              <div className="flex items-center gap-1.5 text-[10.5px] text-[#008064] font-bold bg-[#E8F8F5] px-2 py-1 rounded-lg border border-teal-500/10 self-start animate-fadeIn mt-1.5 w-max">
+                <Check className="w-3.5 h-3.5 text-[#008064] stroke-[3.5]" />
+                <span>{language === "BM" ? "Senarai semak disemak" : "Checklist reviewed"}</span>
               </div>
             )}
           </div>
