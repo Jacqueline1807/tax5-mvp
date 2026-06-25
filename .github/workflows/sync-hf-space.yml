@@ -1,0 +1,30 @@
+name: Sync OCR API to Hugging Face Space
+
+on:
+push:
+branches:
+- main
+paths:
+- "ocr-api/**"
+- ".github/workflows/sync-hf-space.yml"
+workflow_dispatch:
+
+jobs:
+sync-to-huggingface:
+runs-on: ubuntu-latest
+
+```
+steps:
+  - name: Checkout GitHub repo
+    uses: actions/checkout@v4
+
+  - name: Sync ocr-api folder to Hugging Face Space
+    uses: huggingface/hub-sync@v0.1.0
+    with:
+      github_repo_id: ${{ github.repository }}
+      huggingface_repo_id: jacqqq/tax5-ocr-api
+      repo_type: space
+      space_sdk: docker
+      subdirectory: ocr-api
+      hf_token: ${{ secrets.HF_TOKEN }}
+```
